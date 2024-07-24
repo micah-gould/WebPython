@@ -1,4 +1,22 @@
+<!DOCTYPE html>
+<html lang='en'>
+
 <head>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js"></script>
-    <script src="WebPython.js"></script>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <script src='https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js'></script>
+    <title>WebPython</title>
+    <link href='WebPython.css' rel='stylesheet' type='text/css' />
 </head>
+
+<body>
+    <div id='code'>
+        <div id='input'></div>
+        <textarea id='output' rows="6" disabled></textarea>
+    </div>
+    <button id='run'>run</button>
+    <script src='WebPython.js'></script>
+
+</body>
+
+</html>
