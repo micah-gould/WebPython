@@ -7,6 +7,23 @@
     <script src='https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js'></script>
     <title>WebPython</title>
     <script src='WebPython.js'></script>
+    <script>
+        const setup = {
+            requiredfiles: {
+                "prog.py": `a = 2
+b = 3
+print(a + b)`,
+            },
+            inputs: [
+                "Ari",
+                "Micah"
+            ],
+            outputs: [
+                "...",
+                "..."
+            ]
+        }
+    </script>
     <link href='WebPython.css' rel='stylesheet' type='text/css' />
 </head>
 
@@ -15,7 +32,9 @@
         <textarea id='input'></textarea>
         <textarea id='output' disabled></textarea>
     </div>
+    <button id='test'>test</button>
     <button id='run'>run</button>
+    <button id='load'>load</button>
 
 </body>
 
