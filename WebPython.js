@@ -4,14 +4,17 @@ window.onload = async () => {
     indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/'
   })
   const END = Date.now()
-  out(`Pyodide loaded in ${END - START}ms`)
+  document.getElementById('output').value = `Pyodide loaded in ${END - START}ms`
   document.getElementById('run').onclick = async () => {
-    const code = 'a = 2 \nb = 2 \nc=a+b \nc'
-    out('>>> ' + code)
-    out(pyodide.runPython(code))
-  }
-  function out (str) {
-    const output = document.getElementById('output')
-    output.value += str + '\n'
+    document.getElementById('output').value = ''
+    const code = document.getElementById('input').value
+    pyodide.runPython(`
+    import sys
+    import io
+    sys.stdout = io.StringIO()
+    `)
+    pyodide.runPython(code)
+    const stdout = pyodide.runPython('sys.stdout.getvalue()')
+    document.getElementById('output').value = stdout
   }
 }
