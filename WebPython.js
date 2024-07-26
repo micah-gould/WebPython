@@ -1,4 +1,4 @@
-window.onload = async () => {
+window.addEventListener('load', async () => {
   const OUTPUT = document.getElementById('output')
   const INPUT = document.getElementById('input')
   OUTPUT.value = 'Pyodide loading'
@@ -71,4 +71,4 @@ window.onload = async () => {
 
     OUTPUT.value += `Correct: ${correct}, Incorrect: ${incorrect}, Score: ${(correct / total) * 100}%` // Final score
   }
-}
+})
