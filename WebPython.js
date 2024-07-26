@@ -16,11 +16,14 @@ window.onload = async () => {
   const END = Date.now()
   OUTPUT.value += `\nPyodide loaded in ${END - START}ms`
 
+  let stdoutOLD = [] // Array to store all past outputs (by line)
+
   document.getElementById('test').onclick = () => {
     OUTPUT.value = '' // Clear output
     const code = INPUT.value // Get python code
     pyodide.runPython(code) // Run python
-    const stdout = pyodide.runPython('sys.stdout.getvalue()') // Get output. FIXME: Currently gets all the outputs since loading
+    const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+    stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
     OUTPUT.value = stdout // Display output
   }
 
@@ -37,22 +40,30 @@ window.onload = async () => {
     OUTPUT.value = '' // Clear output
     const code = INPUT.value // Get python code
     pyodide.runPython(code) // Run python
+
+    // This code fixes an issue if the user leaves in any print statemnts in the code
+    const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+    stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
+
     const func = code.split('\n')[0].split(' ')[1].split('(')[0] // Get function name
     const total = setup.inputs.length
     let correct = 0
     let incorrect = 0
+
     for (let i = 0; i < total; i++) {
       pyodide.runPython(`print(${func}('${setup.inputs[i]}'))`) // Run each testcase
-      const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(-2)[0] // Get output
+      const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+      stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
       OUTPUT.value += stdout // Display output
       if (stdout === setup.outputs[i]) { // Check if output was correct
         correct++
         OUTPUT.value += ` CORRECT, Score: ${(correct / (i + 1)) * 100}%\n`
       } else {
         incorrect++
-        OUTPUT.value += ` CORRECT, Score: ${(incorrect / (i + 1)) * 100}%\n`
+        OUTPUT.value += ` INCORRECT, Score: ${(correct / (i + 1)) * 100}%\n`
       }
     }
+
     OUTPUT.value += `Correct: ${correct}, Incorrect: ${incorrect}, Score: ${(correct / total) * 100}%` // Final score
   }
 }
