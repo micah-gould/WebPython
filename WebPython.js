@@ -28,12 +28,17 @@ window.onload = async () => {
   }
 
   document.getElementById('load').onclick = () => {
-    INPUT.value = Object.values(setup.requiredfiles) // Get code from setup object
-    // fetch('')
-    //   .then(response => response.text())
-    //   .then((data) => {
-    //     INPUT.value = data
-    //   })
+    if (!Array.isArray(setup.requiredfiles)) {
+      INPUT.value = Object.values(setup.requiredfiles).join('\n') // Get code from setup object
+      return
+    }
+    setup.requiredfiles.forEach(file => {
+      fetch(file)
+        .then(response => response.text())
+        .then((data) => {
+          INPUT.value += data
+        })
+    })
   }
 
   document.getElementById('run').onclick = () => {
@@ -45,7 +50,7 @@ window.onload = async () => {
     const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
     stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
 
-    const func = code.split('\n')[0].split(' ')[1].split('(')[0] // Get function name
+    const func = code.split('\n').filter(a => a.slice(0, 3) === 'def')[0].split(' ')[1].split('(')[0] // Get first function name
     const total = setup.inputs.length
     let correct = 0
     let incorrect = 0

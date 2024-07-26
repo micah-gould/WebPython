@@ -10,8 +10,12 @@
     <script>
         const setup = {
             requiredfiles: {
+                "test.py": `print("Ari")`,
                 "prog.py": `def hi(name):
     return("hi " + name)`,
+                "test2.py": `def test():
+    print("test")
+test()`,
             },
             inputs: [
                 "Ari",
