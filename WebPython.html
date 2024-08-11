@@ -6,8 +6,11 @@
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <script src='https://cdn.jsdelivr.net/pyodide/v0.20.0/full/pyodide.js'></script>
     <script src='horstmann_codecheck.js'></script>
-    <!-- <script src='codecheck2.js'></script> -->
-    <!-- <script src='util.js'></script> -->
+    <script src='codecheck2.js'></script>
+    <script src='util.js'></script>
+    <script src='/ace/ace.js'></script>
+    <script src='/ace/theme-kuroir.js'></script>
+    <script src='/ace/theme-chrome.js'></script>
     <!--script src='WebPython.js'></script-->
     <script src='AutoFill.js'></script>
     <link type='text/css' rel='stylesheet' href='WebPython.css' />
@@ -16,6 +19,7 @@
 </head>
 
 <body>
+    <div class='horstmann_codecheck'></div>
     <div id='code'>
         <textarea id='input'></textarea>
         <textarea id='output' disabled></textarea>
