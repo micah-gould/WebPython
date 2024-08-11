@@ -90,17 +90,17 @@ div.footnotes { border-top: 1px solid gray; padding-top: 0.5em; }
       const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
       stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
       addText(stdout + '\n', OUTPUT)
-      let score
+      let pf
       const input = inputs[i]
       const expectedOutput = outputs[i]
       const output = stdout
       if (expectedOutput === output) { // Check if output was correct
         correct++
-        score = 'pass'
+        pf = 'pass'
       } else {
-        score = 'fail'
+        pf = 'fail'
       }
-      report += `<tr><td><span class="pass">${score} </span></td>
+      report += `<tr><td><span class=${pf}>${pf} </span></td>
 <td><pre>${name.split('.')[0]}</pre></td>
 <td><pre>${input}</pre></td>
 <td><pre>${output}
