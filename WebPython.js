@@ -101,7 +101,7 @@ div.footnotes { border-top: 1px solid gray; padding-top: 0.5em; }
         score = 'fail'
       }
       report += `<tr><td><span class="pass">${score} </span></td>
-<td><pre>${name}</pre></td>
+<td><pre>${name.split('.')[0]}</pre></td>
 <td><pre>${input}</pre></td>
 <td><pre>${output}
 </pre></td>
