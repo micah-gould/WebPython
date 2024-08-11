@@ -1,6 +1,7 @@
 window.addEventListener('load', async () => {
-  const OUTPUT = document.createElement('textarea')
-  OUTPUT.classList.add('Output')
+  const OUTPUT = document.getElementById('output')
+  OUTPUT.value = "HELLO I'M HERE"
+  console.log(OUTPUT)
   // Load Pyodide
   const pyodide = await loadPyodide({
     indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/',
