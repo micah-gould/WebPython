@@ -1,11 +1,12 @@
 window.addEventListener('load', async () => {
   const OUTPUT = document.getElementById('output')
-  OUTPUT.value = "HELLO I'M HERE"
-  console.log(OUTPUT)
+
+  OUTPUT.value = 'Pyodide loading'
+  const START = Date.now()
   // Load Pyodide
   const pyodide = await loadPyodide({
     indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/',
-    stdout: (msg) => { OUTPUT.value += `\nPyodide: ${msg}` }
+    stdout: (msg) => { addText(`\nPyodide: ${msg}`, OUTPUT) }
   })
   // data Pyodide output
   pyodide.runPython(`
@@ -13,8 +14,22 @@ window.addEventListener('load', async () => {
   import io
   sys.stdout = io.StringIO()
   `)
+  const END = Date.now()
+  addText(`\nPyodide loaded in ${END - START}ms`, OUTPUT)
 
   const stdoutOLD = [] // Array to store all past outputs (by line)
+
+  function addText (text, area) {
+    area.value += text
+    resize(area)
+  }
+
+  function resize (area) {
+    // Reset the height to recalculate the correct scroll height
+    area.style.height = 'auto'
+    // Set the height to the scroll height to fit the content
+    area.style.height = `${area.scrollHeight}px`
+  }
 })
 
 async function python (params, inputs, output) {
