@@ -1,9 +1,6 @@
 window.addEventListener('load', async () => {
-  const data = setup
-  const OUTPUT = document.getElementById('output')
-  const INPUT = document.getElementById('input')
-  OUTPUT.value = 'Pyodide loading'
-  const START = Date.now()
+  const OUTPUT = document.createElement('textarea')
+  OUTPUT.classList.add('Output')
   // Load Pyodide
   const pyodide = await loadPyodide({
     indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/',
@@ -15,72 +12,56 @@ window.addEventListener('load', async () => {
   import io
   sys.stdout = io.StringIO()
   `)
-  const END = Date.now()
-  OUTPUT.value += `\nPyodide loaded in ${END - START}ms`
 
-  let stdoutOLD = [] // Array to store all past outputs (by line)
-
-  document.getElementById('test').onclick = () => {
-    OUTPUT.value = '' // Clear output
-    const code = INPUT.value // Get python code
-    try {
-      pyodide.runPython(code) // Run python
-      const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-      stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-      OUTPUT.value = stdout // Display output
-    } catch (err) {
-      OUTPUT.value = err.message
-    }
-  }
-
-  document.getElementById('load').onclick = () => {
-    if (!Array.isArray(data.requiredfiles)) {
-      INPUT.value = Object.values(data.requiredfiles).join('\n') // Get code from data object
-      return
-    }
-    data.requiredfiles.forEach(file => {
-      fetch(file)
-        .then(response => response.text())
-        .then((data) => {
-          INPUT.value += data
-        })
-    })
-  }
-
-  document.getElementById('run').onclick = () => {
-    OUTPUT.value = '' // Clear output
-    const code = INPUT.value // Get python code
-    try {
-      pyodide.runPython(code) // Run python
-      // This code fixes an issue if the user leaves in any print statemnts in the code
-      const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-      stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-    } catch (err) {
-      OUTPUT.value = err
-    }
-
-    const func = code.split('\n').filter(a => a.slice(0, 3) === 'def')[0].split(' ')[1].split('(')[0] // Get first function name
-    const total = data.inputs.length
-    let correct = 0
-    let incorrect = 0
-
-    try {
-      for (let i = 0; i < total; i++) {
-        pyodide.runPython(`print(${func}('${data.inputs[i]}'))`) // Run each testcase
-        const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-        stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-        OUTPUT.value += stdout // Display output
-        if (stdout === data.outputs[i]) { // Check if output was correct
-          correct++
-          OUTPUT.value += ` CORRECT, Score: ${(correct / (i + 1)) * 100}%\n`
-        } else {
-          incorrect++
-          OUTPUT.value += ` INCORRECT, Score: ${(correct / (i + 1)) * 100}%\n`
-        }
-      }
-      OUTPUT.value += `Correct: ${correct}, Incorrect: ${incorrect}, Score: ${(correct / total) * 100}%` // Final score
-    } catch (err) {
-      OUTPUT.value = err
-    }
-  }
+  const stdoutOLD = [] // Array to store all past outputs (by line)
 })
+
+async function python (params, inputs, output) {
+  console.log(params)
+  const name = Object.keys(params).filter(a => a.split('.')[1] === 'py')[0]
+  console.log(name)
+  let report = `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<style type="text/css">
+.header {font-weight: bold; font-size: 1.2em; }
+.item {font-weight: bold;}
+.pass {color: green;}
+.fail {color: red;}
+.note {color: blue; font-weight: bold;}
+table.file td {padding-right: 1em; background: #FFF; }
+.linenumber {color: gray;}
+.footnote {font-size: 0.7em;}
+table {font-size: 0.9em;}
+td, th { background: #EEE; margin: 0.5em; padding: 0.25em;}
+table.output td {vertical-align: top;}
+div.footnotes { border-top: 1px solid gray; padding-top: 0.5em; }
+</style>
+<title>Report</title>
+</head>
+<body>
+<p class="header call">Calling with Arguments</p>
+<div class="call">
+<table class="run">
+<tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n
+`
+
+  report += `\n</table>
+</div>
+<p class="header studentFiles">Submitted files</p>
+<div class="studentFiles">
+<p class="caption">${name}:</p>
+<pre class="output">${params[name]}
+</pre>
+</div>
+<p class="header score">Score</p>
+<div class="score">
+<p class="score">5/5</p>
+</div>
+<div class="footnotes"><div class="footnote">2024-08-11T15:28:43Z</div>
+</div>
+</body></html>`
+  console.log(report)
+  return { report }
+}
