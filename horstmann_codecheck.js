@@ -723,7 +723,7 @@ window.addEventListener('load', async function () {
       form = document.createElement('form')
       const submitDiv = document.createElement('div')
       submitDiv.classList.add('codecheckSubmit')
-      let submitButtonLabel = ('CodeCheck')
+      let submitButtonLabel = _('CodeCheck')
 
       const directoryPrefix = setup.prefix ? setup.prefix + '/' : ''
       let inputPresent = false
