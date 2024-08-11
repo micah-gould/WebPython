@@ -19,17 +19,20 @@
 </head>
 
 <body>
-    <textarea disabled id="output"></textarea>
+    <textarea disabled id="output" class="text"></textarea>
+    <div id="description"></div>
     <div class='horstmann_codecheck'></div>
     <script type='text/javascript'>
         horstmann_codecheck.setup.push({
             "requiredFiles": {
                 "orientation.py": {
-                    "editors": [null, "width = int(input(\"Width: \"))\nheight = int(input(\"Height: \"))\n\n",
+                    "editors": [null, "def test(w, h):\n  width = int(w)\n  height = int(h)\n  \n",
                         "\n\n\n"
                     ]
                 }
             },
+            "inputs": [[1, 2], [2, 2], [2, 1]],
+            "outputs": ["Portrait", "Square", "Landscape"],
             "description": "\u003Cp\u003EYou are given the width and height of a picture. Determine whether it is in\nlandscape orientation (wider than tall), in portrait orientation (taller than\nwide), or square, then print Landscape, Portrait, or Square.\u003C/p\u003E  \n"
         })
     </script>

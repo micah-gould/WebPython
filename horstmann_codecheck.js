@@ -812,7 +812,7 @@ window.addEventListener('load', async function () {
         submitButton.classList.add('hc-disabled')
         if (downloadButton !== undefined) downloadButton.style.display = 'none'
         try {
-          const result = Object.keys(setup.requiredFiles)[0].split('.')[0] === 'py' ? await postData(setup.url, params) : await python(params, setup.inputs, setup.output)
+          const result = Object.keys(setup.requiredFiles)[0].split('.')[0] === 'py' ? await postData(setup.url, params) : await python(params, setup.inputs, setup.outputs)
           successfulSubmission(result)
         } catch (e) {
           response.innerHTML = `<div>Error: ${e.message}</div>`

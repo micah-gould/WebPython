@@ -1,10 +1,25 @@
+let stdoutOLD = [] // Array to store all past outputs (by line)
+let OUTPUT
+let pyodide
+let addText
+let setText
 window.addEventListener('load', async () => {
-  const OUTPUT = document.getElementById('output')
+  addText = function (text, area) {
+    area.value += text
+    resize(area)
+  }
+  setText = function (text, area) {
+    area.value = text
+    resize(area)
+  }
 
-  OUTPUT.value = 'Pyodide loading'
+  document.getElementById('description').innerHTML += window.horstmann_codecheck.setup[0].description
+
+  OUTPUT = document.getElementById('output')
+  setText('Pyodide loading', OUTPUT)
   const START = Date.now()
   // Load Pyodide
-  const pyodide = await loadPyodide({
+  pyodide = await loadPyodide({
     indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/',
     stdout: (msg) => { addText(`\nPyodide: ${msg}`, OUTPUT) }
   })
@@ -17,13 +32,6 @@ window.addEventListener('load', async () => {
   const END = Date.now()
   addText(`\nPyodide loaded in ${END - START}ms`, OUTPUT)
 
-  const stdoutOLD = [] // Array to store all past outputs (by line)
-
-  function addText (text, area) {
-    area.value += text
-    resize(area)
-  }
-
   function resize (area) {
     // Reset the height to recalculate the correct scroll height
     area.style.height = 'auto'
@@ -32,10 +40,7 @@ window.addEventListener('load', async () => {
   }
 })
 
-async function python (params, inputs, output) {
-  console.log(params)
-  const name = Object.keys(params).filter(a => a.split('.')[1] === 'py')[0]
-  console.log(name)
+async function python (params, inputs, outputs) {
   let report = `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -62,8 +67,53 @@ div.footnotes { border-top: 1px solid gray; padding-top: 0.5em; }
 <table class="run">
 <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n
 `
+  OUTPUT.value = '' // Clear output
+  const name = Object.keys(params).filter(a => a.split('.')[1] === 'py')[0]
+  const code = params[name] // Get python code
+  try {
+    pyodide.runPython('print("")')
+    pyodide.runPython(code) // Run python
+    // This code fixes an issue if the user leaves in any print statemnts in the code
+    const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+    stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
+  } catch (err) {
+    setText(err, OUTPUT)
+  }
 
-  report += `\n</table>
+  const func = code.split('\n').filter(a => a.slice(0, 3) === 'def')[0].split(' ')[1].split('(')[0] // Get first function name
+  const total = inputs.length
+  let correct = 0
+
+  try {
+    for (let i = 0; i < total; i++) {
+      pyodide.runPython(`print(${func}(${inputs[i].join(', ')}))`) // Run each testcase
+      const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+      stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
+      addText(stdout + '\n', OUTPUT)
+      let score
+      const input = inputs[i]
+      const expectedOutput = outputs[i]
+      const output = stdout
+      if (expectedOutput === output) { // Check if output was correct
+        correct++
+        score = 'pass'
+      } else {
+        score = 'fail'
+      }
+      report += `<tr><td><span class="pass">${score} </span></td>
+<td><pre>${name}</pre></td>
+<td><pre>${input}</pre></td>
+<td><pre>${output}
+</pre></td>
+<td><pre>${expectedOutput}
+</pre></td>
+</tr>\n`
+    }
+  } catch (err) {
+    setText(err, OUTPUT)
+  }
+
+  report += `</table>
 </div>
 <p class="header studentFiles">Submitted files</p>
 <div class="studentFiles">
@@ -73,11 +123,10 @@ div.footnotes { border-top: 1px solid gray; padding-top: 0.5em; }
 </div>
 <p class="header score">Score</p>
 <div class="score">
-<p class="score">5/5</p>
+<p class="score">${correct}/${total}</p>
 </div>
 <div class="footnotes"><div class="footnote">2024-08-11T15:28:43Z</div>
 </div>
 </body></html>`
-  console.log(report)
   return { report }
 }
