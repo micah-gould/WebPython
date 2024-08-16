@@ -1,3 +1,9 @@
+/* eslint no-case-declarations: off, no-undef: off, no-unused-vars: off
+    -------------
+    no-case-declarations is off because each problem type is handeled within a switch statement and may require it's own variables
+    no-undef is off because loadPyodide doesn't need to be declared locally
+    no-unused-vars is off because the function Python is written in this file but called from another */
+
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let OUTPUT
 let pyodide
@@ -40,93 +46,106 @@ window.addEventListener('load', async () => {
   }
 })
 
-async function python (params, inputs, outputs) {
+async function python (setup, params) {
   let report = `<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<style type="text/css">
-.header {font-weight: bold; font-size: 1.2em; }
-.item {font-weight: bold;}
-.pass {color: green;}
-.fail {color: red;}
-.note {color: blue; font-weight: bold;}
-table.file td {padding-right: 1em; background: #FFF; }
-.linenumber {color: gray;}
-.footnote {font-size: 0.7em;}
-table {font-size: 0.9em;}
-td, th { background: #EEE; margin: 0.5em; padding: 0.25em;}
-table.output td {vertical-align: top;}
-div.footnotes { border-top: 1px solid gray; padding-top: 0.5em; }
-</style>
-<title>Report</title>
-</head>
-<body>
-<p class="header call">Calling with Arguments</p>
-<div class="call">
-<table class="run">
-<tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n
-`
-  OUTPUT.value = '' // Clear output
-  const name = Object.keys(params).filter(a => a.split('.')[1] === 'py')[0]
-  const code = params[name] // Get python code
-  try {
-    pyodide.runPython('print("")')
-    pyodide.runPython(code) // Run python
-    // This code fixes an issue if the user leaves in any print statemnts in the code
-    const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-    stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-  } catch (err) {
-    setText(err, OUTPUT)
-  }
-
-  const func = code.split('\n').filter(a => a.slice(0, 3) === 'def')[0].split(' ')[1].split('(')[0] // Get first function name
-  const total = inputs.length
-  let correct = 0
-
-  try {
-    for (let i = 0; i < total; i++) {
-      pyodide.runPython(`print(${func}(${inputs[i].join(', ')}))`) // Run each testcase
-      const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-      stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-      addText(stdout + '\n', OUTPUT)
-      let pf
-      const input = inputs[i]
-      const expectedOutput = outputs[i]
-      const output = stdout
-      if (expectedOutput === output) { // Check if output was correct
-        correct++
-        pf = 'pass'
-      } else {
-        pf = 'fail'
-      }
-      report += `<tr><td><span class=${pf}>${pf} </span></td>
-<td><pre>${name.split('.')[0]}</pre></td>
-<td><pre>${input}</pre></td>
-<td><pre>${output}
-</pre></td>
-<td><pre>${expectedOutput}
-</pre></td>
-</tr>\n`
+  <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+  <html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+  <style type="text/css">
+  .header {font-weight: bold; font-size: 1.2em; }
+  .item {font-weight: bold;}
+  .pass {color: green;}
+  .fail {color: red;}
+  .note {color: blue; font-weight: bold;}
+  table.file td {padding-right: 1em; background: #FFF; }
+  .linenumber {color: gray;}
+  .footnote {font-size: 0.7em;}
+  table {font-size: 0.9em;}
+  td, th { background: #EEE; margin: 0.5em; padding: 0.25em;}
+  table.output td {vertical-align: top;}
+  div.footnotes { border-top: 1px solid gray; padding-top: 0.5em; }
+  </style>
+  <title>Report</title>
+  </head>
+  <body>`
+  for (let i = 0; i < setup.sections.length; i++) {
+    switch (setup.sections[i].type) {
+      case 'call':
+        report += `<p class="header call">Calling with Arguments</p>
+        <div class="call">
+        <table class="run">
+        <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n
+        `
+        OUTPUT.value = '' // Clear output
+        const name = Object.keys(setup.requiredFiles)[0]
+        const code = params[name] // Get python code
+        const total = setup.sections[i].runs.length
+        let correct = 0
+        try {
+          pyodide.runPython('print("")')
+          pyodide.runPython(code) // Run python
+          // This code fixes an issue if the user leaves in any print statemnts in the code
+          const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+          stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
+        } catch (err) {
+          setText(err, OUTPUT)
+        }
+        for (let j = 0; j < setup.sections[i].runs.length; j++) {
+          const func = setup.sections[i].runs[j].caption // Get function name
+          const input = setup.sections[i].runs[j].args[0].value
+          try {
+            for (let i = 0; i < total; i++) {
+              pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
+              const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+              stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
+              addText(stdout + '\n', OUTPUT)
+              let pf
+              const expectedOutput = setup.sections[i].runs[j].output
+              const output = stdout
+              if (expectedOutput === output) { // Check if output was correct
+                correct++
+                pf = 'pass'
+              } else {
+                pf = 'fail'
+              }
+              report += `<tr><td><span class=${pf}>${pf} </span></td>
+        <td><pre>${name.split('.')[0]}</pre></td>
+        <td><pre>${input}</pre></td>
+        <td><pre>${output}
+        </pre></td>
+        <td><pre>${expectedOutput}
+        </pre></td>
+        </tr>\n`
+            }
+          } catch (err) {
+            setText(err, OUTPUT)
+          }
+        }
+        report += `</table>
+        </div>
+        <p class="header studentFiles">Submitted files</p>
+        <div class="studentFiles">
+        <p class="caption">${name}:</p>
+        <pre class="output">${code}
+        </pre>
+        </div>
+        <p class="header score">Score</p>
+        <div class="score">
+        <p class="score">${correct}/${total}</p>
+        </div>
+        <div class="footnotes"><div class="footnote">2024-08-11T15:28:43Z</div>
+        </div>`
+        break
+      case 'run':
+        break
+      case 'sub':
+        break
+      case 'unitTest':
+        break
+      case 'tester':
+        break
     }
-  } catch (err) {
-    setText(err, OUTPUT)
   }
-
-  report += `</table>
-</div>
-<p class="header studentFiles">Submitted files</p>
-<div class="studentFiles">
-<p class="caption">${name}:</p>
-<pre class="output">${params[name]}
-</pre>
-</div>
-<p class="header score">Score</p>
-<div class="score">
-<p class="score">${correct}/${total}</p>
-</div>
-<div class="footnotes"><div class="footnote">2024-08-11T15:28:43Z</div>
-</div>
-</body></html>`
+  report += '</body></html>'
   return { report }
 }
