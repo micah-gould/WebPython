@@ -87,8 +87,7 @@ async function python (setup, params) {
         report += `<p class="header call">Calling with Arguments</p>
         <div class="call">
         <table class="run">
-        <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n
-        `
+        <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n`
         for (let j = 0; j < setup.sections[i].runs.length; j++) {
           const func = setup.sections[i].runs[j].caption // Get function name
           const input = setup.sections[i].runs[j].args[0].value
@@ -108,13 +107,13 @@ async function python (setup, params) {
                 pf = 'fail'
               }
               report += `<tr><td><span class=${pf}>${pf}</span></td>
-        <td><pre>${name.split('.')[0]}</pre></td>
-        <td><pre>${input}</pre></td>
-        <td><pre>${output}
-        </pre></td>
-        <td><pre>${expectedOutput}
-        </pre></td>
-        </tr>\n`
+              <td><pre>${name.split('.')[0]}</pre></td>
+              <td><pre>${input}</pre></td>
+              <td><pre>${output}
+              </pre></td>
+              <td><pre>${expectedOutput}
+              </pre></td>
+              </tr>\n`
             }
           } catch (err) {
             setText(err, OUTPUT)
