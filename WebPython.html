@@ -24,15 +24,35 @@
     <div class='horstmann_codecheck'></div>
     <script type='text/javascript'>
         horstmann_codecheck.setup.push({
+            "sections": [
+                {
+                    "type": "call",
+                    "runs": [
+                        {
+                            "caption": "test",
+                            "args": [{ "name": "Arguments", "value": "1, 2" }],
+                            "output": "Portrait"
+                        },
+                        {
+                            "caption": "test",
+                            "args": [{ "name": "Arguments", "value": "2, 2" }],
+                            "output": "Square"
+                        },
+                        {
+                            "caption": "test",
+                            "args": [{ "name": "Arguments", "value": "2, 1" }],
+                            "output": "Landscape"
+                        }
+                    ]
+                }
+            ],
             "requiredFiles": {
                 "orientation.py": {
-                    "editors": [null, "def test(w, h):\n  width = int(w)\n  height = int(h)\n  \n",
+                    "editors": [null, "def test(w, h):\n  width = int(w)\n  height = int(h)\n  if(width>height):\n    return'Landscape'\n  if(height>width):\n    return'Portrait'\n  return'Square'",
                         "\n\n\n"
                     ]
                 }
             },
-            "inputs": [[1, 2], [2, 2], [2, 1]],
-            "outputs": ["Portrait", "Square", "Landscape"],
             "description": "\u003Cp\u003EYou are given the width and height of a picture. Determine whether it is in\nlandscape orientation (wider than tall), in portrait orientation (taller than\nwide), or square, then print Landscape, Portrait, or Square.\u003C/p\u003E  \n"
         })
     </script>
