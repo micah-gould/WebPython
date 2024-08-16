@@ -133,7 +133,45 @@ async function python (setup, params) {
         </div>
         </div>`
         break
-      case 'run':
+      case 'run': // TODO: test
+        report += `<p class="header run">Running ${name}</p>
+        <div class="run">`
+        for (let j = 0; j < setup.sections[i].runs.length; j++) {
+          const inputs = setup.sections[i].input.split('\n')
+          try {
+            for (let k = 0; k < total; k++) {
+              newCode = code.replace(/\\input.*/, `next(${inputs})`)
+              pyodide.runPython(newCode) // Run each testcase
+              const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+              stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
+              addText(stdout + '\n', OUTPUT)
+              let pf
+              const expectedOutput = setup.sections[i].runs[j].output
+              const output = stdout
+              if (expectedOutput === output) { // Check if output was correct
+                correct++
+                pf = 'pass'
+              } else {
+                pf = 'fail'
+              }
+            }
+          } catch (err) {
+            setText(err, OUTPUT)
+          }
+        }
+        report += `</table>
+        </div>
+        <p class="header studentFiles">Submitted files</p>
+        <div class="studentFiles">
+        <p class="caption">${name}:</p>
+        <pre class="output">${code}
+        </pre>
+        </div>
+        <p class="header score">Score</p>
+        <div class="score">
+        <p class="score">${correct}/${total}</p>
+        </div>
+        </div>`
         break
       case 'sub':
         report += `<p class="header sub">Running program with substitutions</p>
