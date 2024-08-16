@@ -132,7 +132,6 @@ async function python (setup, params) {
         <div class="score">
         <p class="score">${correct}/${total}</p>
         </div>
-        <div class="footnotes"><div class="footnote">2024-08-11T15:28:43Z</div>
         </div>`
         break
       case 'run':
@@ -191,7 +190,6 @@ async function python (setup, params) {
         <div class="score">
         <p class="score">${correct}/${total}</p>
         </div>
-        <div class="footnotes"><div class="footnote">2024-08-11T15:28:43Z</div>
         </div>`
         break
       case 'unitTest':
