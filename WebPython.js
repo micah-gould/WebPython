@@ -142,9 +142,10 @@ async function python (setup, params) {
           try {
             if (code.indexOf('input') !== -1) {
               const prompt = (str, start, end) => str.substring(str.indexOf(start) + start.length, str.indexOf(end, str.indexOf(start) + start.length))
-              newCode = `inputs = iter([${inputs}])\n${code.replace(/input.*/, 'next(inputs))')}` // Switch user input to computer input
-              const index = newCode.indexOf(')', newCode.indexOf('inputs)')) + 2 // TODO: make it work with every case
-              newCode = newCode.slice(0, index) + `\n${newCode.slice(index).match(/^\s*/)[0]}print(${prompt(code, 'input(', ')')})` + newCode.slice(index) // Print the input question and inputed value
+              const str = 'next(inputs)'
+              newCode = `inputs = iter([${inputs}])\n${code.replace(/input\((.*?)\)/, str)}` // Switch user input to computer input
+              const index = newCode.indexOf(')', newCode.indexOf(str) + str.length) + 1 // TODO: make it work with every case
+              newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f${prompt(code, 'input(', ')').slice(0, -1)}{n}")` + newCode.slice(index) // Print the input question and inputed value
               pyodide.runPython(newCode) // Run each testcase
             } else {
               pyodide.runPython(code)
@@ -159,7 +160,6 @@ async function python (setup, params) {
             stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
             addText(output + '\n', OUTPUT)
             const expectedOutput = setup.sections[i].runs[j].output
-            console.log(output, '\n', expectedOutput)
             if (expectedOutput === output) { // Check if output was correct
               correct++
               pf = 'pass'
