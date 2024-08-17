@@ -143,7 +143,7 @@ async function python (setup, params) {
             if (code.indexOf('input') !== -1) {
               const prompt = (str, start, end) => str.substring(str.indexOf(start) + start.length, str.indexOf(end, str.indexOf(start) + start.length))
               newCode = `inputs = iter([${inputs}])\n${code.replace(/input.*/, 'next(inputs))')}` // Switch user input to computer input
-              const index = newCode.indexOf(')', newCode.indexOf('inputs)')) + 2
+              const index = newCode.indexOf(')', newCode.indexOf('inputs)')) + 2 // TODO: make it work with every case
               newCode = newCode.slice(0, index) + `\n${newCode.slice(index).match(/^\s*/)[0]}print(${prompt(code, 'input(', ')')})` + newCode.slice(index) // Print the input question and inputed value
               pyodide.runPython(newCode) // Run each testcase
             } else {
