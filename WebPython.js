@@ -86,6 +86,16 @@ async function python (setup, params) {
         setText(err, OUTPUT)
       }
     }
+    function check (expectedOutput) {
+      output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+      stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+      addText(output + '\n', OUTPUT)
+      if (expectedOutput !== output) { // Check if output was correct
+        return 'fail'
+      }
+      correct++
+      return 'pass'
+    }
     switch (setup.sections[i].type) { // TODO: Review all the current methods and make sure they work
       case 'call':
         report += `<p class="header call">Calling with Arguments</p>
@@ -98,16 +108,7 @@ async function python (setup, params) {
           const input = setup.sections[i].runs[j].args[0].value
           try {
             pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
-            output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-            stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
-            addText(output + '\n', OUTPUT)
-            const expectedOutput = setup.sections[i].runs[j].output
-            if (expectedOutput === output) { // Check if output was correct
-              correct++
-              pf = 'pass'
-            } else {
-              pf = 'fail'
-            }
+            pf = check(setup.sections[i].runs[j].output)
             report += `<tr><td><span class=${pf}>${pf}</span></td>
               <td><pre>${name.split('.')[0]}</pre></td>
               <td><pre>${input}</pre></td>
@@ -156,16 +157,7 @@ async function python (setup, params) {
                 pyodide.runPython(newCode)
               }
             }
-            output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-            stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
-            addText(output + '\n', OUTPUT)
-            const expectedOutput = setup.sections[i].runs[j].output
-            if (expectedOutput === output) { // Check if output was correct
-              correct++
-              pf = 'pass'
-            } else {
-              pf = 'fail'
-            }
+            pf = check(setup.sections[i].runs[j].output)
           } catch (err) {
             setText(err, OUTPUT)
           }
@@ -210,16 +202,7 @@ async function python (setup, params) {
               newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
             }
             pyodide.runPython(newCode) // Run each testcase
-            output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-            stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
-            addText(output + '\n', OUTPUT)
-            const expectedOutput = setup.sections[i].runs[j].output
-            if (expectedOutput === output) { // Check if output was correct
-              correct++
-              pf = 'pass'
-            } else {
-              pf = 'fail'
-            }
+            pf = check(setup.sections[i].runs[j].output)
             report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name.split('.')[0]}</pre></td>`
             for (arg of setup.sections[i].runs[j].args) {
