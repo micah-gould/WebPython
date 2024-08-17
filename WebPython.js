@@ -72,15 +72,19 @@ async function python (setup, params) {
     const name = Object.keys(setup.requiredFiles)[i]
     const code = params[name] // Get python code
     const total = setup.sections[i]?.runs.length
+    let pf
+    let output
     let correct = 0
-    try { // Initialize the cod
-      pyodide.runPython('print("")')
-      pyodide.runPython(code) // Run python
-      // This code fixes an issue if the user leaves in any print statemnts in the code
-      const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-      stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-    } catch (err) {
-      setText(err, OUTPUT)
+    function Initialize (input) {
+      try { // Initialize the code
+        pyodide.runPython('print("")')
+        pyodide.runPython(input) // Run python
+        // This code fixes an issue if the user leaves in any print statemnts in the code
+        const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+        stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
+      } catch (err) {
+        setText(err, OUTPUT)
+      }
     }
     switch (setup.sections[i].type) {
       case 'call':
@@ -88,25 +92,23 @@ async function python (setup, params) {
         <div class="call">
         <table class="run">
         <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n`
+        Initialize(code)
         for (let j = 0; j < setup.sections[i].runs.length; j++) {
           const func = setup.sections[i].runs[j].caption // Get function name
           const input = setup.sections[i].runs[j].args[0].value
           try {
-            for (let k = 0; k < total; k++) {
-              pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
-              const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-              stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-              addText(stdout + '\n', OUTPUT)
-              let pf
-              const expectedOutput = setup.sections[i].runs[j].output
-              const output = stdout
-              if (expectedOutput === output) { // Check if output was correct
-                correct++
-                pf = 'pass'
-              } else {
-                pf = 'fail'
-              }
-              report += `<tr><td><span class=${pf}>${pf}</span></td>
+            pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
+            output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+            stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+            addText(output + '\n', OUTPUT)
+            const expectedOutput = setup.sections[i].runs[j].output
+            if (expectedOutput === output) { // Check if output was correct
+              correct++
+              pf = 'pass'
+            } else {
+              pf = 'fail'
+            }
+            report += `<tr><td><span class=${pf}>${pf}</span></td>
               <td><pre>${name.split('.')[0]}</pre></td>
               <td><pre>${input}</pre></td>
               <td><pre>${output}
@@ -114,7 +116,6 @@ async function python (setup, params) {
               <td><pre>${expectedOutput}
               </pre></td>
               </tr>\n`
-            }
           } catch (err) {
             setText(err, OUTPUT)
           }
@@ -133,33 +134,43 @@ async function python (setup, params) {
         </div>
         </div>`
         break
-      case 'run': // TODO: test
+      case 'run':
         report += `<p class="header run">Running ${name}</p>
         <div class="run">`
         for (let j = 0; j < setup.sections[i].runs.length; j++) {
-          const inputs = setup.sections[i].input.split('\n')
+          const inputs = setup.sections[i].runs[j].input.split('\n')
           try {
-            for (let k = 0; k < total; k++) {
-              newCode = code.replace(/\\input.*/, `next(${inputs})`)
+            if (code.indexOf('input') !== -1) {
+              const prompt = (str, start, end) => str.substring(str.indexOf(start) + start.length, str.indexOf(end, str.indexOf(start) + start.length))
+              newCode = `inputs = iter([${inputs}])\n${code.replace(/input.*/, 'next(inputs))')}` // Switch user input to computer input
+              const index = newCode.indexOf(')', newCode.indexOf('inputs)')) + 2
+              newCode = newCode.slice(0, index) + `\n${newCode.slice(index).match(/^\s*/)[0]}print(${prompt(code, 'input(', ')')})` + newCode.slice(index) // Print the input question and inputed value
               pyodide.runPython(newCode) // Run each testcase
-              const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-              stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-              addText(stdout + '\n', OUTPUT)
-              let pf
-              const expectedOutput = setup.sections[i].runs[j].output
-              const output = stdout
-              if (expectedOutput === output) { // Check if output was correct
-                correct++
-                pf = 'pass'
-              } else {
-                pf = 'fail'
+            } else {
+              pyodide.runPython(code)
+            }
+            if (setup.useFiles !== undefined) {
+              for (file of Object.values(setup.useFiles)) {
+                newCode = file.replace(/from\s+\S+\s+import\s+\S+/g, '')
+                pyodide.runPython(newCode)
               }
+            }
+            output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+            stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+            addText(output + '\n', OUTPUT)
+            const expectedOutput = setup.sections[i].runs[j].output
+            console.log(output, '\n', expectedOutput)
+            if (expectedOutput === output) { // Check if output was correct
+              correct++
+              pf = 'pass'
+            } else {
+              pf = 'fail'
             }
           } catch (err) {
             setText(err, OUTPUT)
           }
         }
-        report += `</table>
+        report += `<span class=${pf}>${pf}</span>
         </div>
         <p class="header studentFiles">Submitted files</p>
         <div class="studentFiles">
@@ -167,6 +178,16 @@ async function python (setup, params) {
         <pre class="output">${code}
         </pre>
         </div>
+        <p class="header providedFiles">Provided files</p>
+        <div class="providedFiles">`
+        if (setup.useFiles !== undefined) {
+          for ([key, file] of Object.entries(setup.useFiles)) {
+            report += `<p class="caption">${key}:</p>
+            <pre class="output">${file}
+            </pre>`
+          }
+        }
+        report += `</div>
         <p class="header score">Score</p>
         <div class="score">
         <p class="score">${correct}/${total}</p>
@@ -189,12 +210,10 @@ async function python (setup, params) {
               newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
             }
             pyodide.runPython(newCode) // Run each testcase
-            const stdout = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-            stdoutOLD = stdoutOLD.concat(stdout.split('\n')) // Add the new outputs to the list of old outputs
-            addText(stdout + '\n', OUTPUT)
-            let pf
+            output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+            stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+            addText(output + '\n', OUTPUT)
             const expectedOutput = setup.sections[i].runs[j].output
-            const output = stdout
             if (expectedOutput === output) { // Check if output was correct
               correct++
               pf = 'pass'
