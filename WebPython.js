@@ -67,10 +67,10 @@ async function python (setup, params) {
   <title>Report</title>
   </head>
   <body>`
-  const code = params[name] // Get python code
   for (let i = 0; i < setup.sections.length; i++) {
     OUTPUT.value = '' // Clear output
     const name = Object.keys(setup.requiredFiles)[i]
+    const code = params[name] // Get python code
     const total = setup.sections[i]?.runs.length
     let pf
     let output
