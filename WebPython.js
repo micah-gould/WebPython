@@ -67,10 +67,10 @@ async function python (setup, params) {
   <title>Report</title>
   </head>
   <body>`
+  const code = params[name] // Get python code
   for (let i = 0; i < setup.sections.length; i++) {
     OUTPUT.value = '' // Clear output
     const name = Object.keys(setup.requiredFiles)[i]
-    const code = params[name] // Get python code
     const total = setup.sections[i]?.runs.length
     let pf
     let output
@@ -86,7 +86,7 @@ async function python (setup, params) {
         setText(err, OUTPUT)
       }
     }
-    switch (setup.sections[i].type) {
+    switch (setup.sections[i].type) { // TODO: Review all the current methods and make sure they work
       case 'call':
         report += `<p class="header call">Calling with Arguments</p>
         <div class="call">
@@ -248,9 +248,9 @@ async function python (setup, params) {
         </div>
         </div>`
         break
-      case 'unitTest':
+      case 'unitTest': // TODO: Write this method
         break
-      case 'tester':
+      case 'tester': // TODO: Write this method
         break
     }
   }
