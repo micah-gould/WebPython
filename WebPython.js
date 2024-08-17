@@ -75,7 +75,7 @@ async function python (setup, params) {
     let pf
     let output
     let correct = 0
-    function Initialize (input) {
+    function initialize (input) {
       try { // Initialize the code
         pyodide.runPython('print("")')
         pyodide.runPython(input) // Run python
@@ -102,7 +102,7 @@ async function python (setup, params) {
         <div class="call">
         <table class="run">
         <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n`
-        Initialize(code)
+        initialize(code)
         for (let j = 0; j < setup.sections[i].runs.length; j++) {
           const func = setup.sections[i].runs[j].caption // Get function name
           const input = setup.sections[i].runs[j].args[0].value
@@ -149,7 +149,7 @@ async function python (setup, params) {
               newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f${prompt(code, 'input(', ')').slice(0, -1)}{n}")` + newCode.slice(index) // Print the input question and inputed value
               pyodide.runPython(newCode) // Run each testcase
             } else {
-              pyodide.runPython(code)
+              initialize(code)
             }
             if (setup.useFiles !== undefined) {
               for (file of Object.values(setup.useFiles)) {
