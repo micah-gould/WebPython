@@ -136,17 +136,6 @@ async function python (setup, params) {
           }
         }
         report += `</table>
-        </div>
-        <p class="header studentFiles">Submitted files</p>
-        <div class="studentFiles">
-        <p class="caption">${name}:</p>
-        <pre class="output">${code}
-        </pre>
-        </div>
-        <p class="header score">Score</p>
-        <div class="score">
-        <p class="score">${correct}/${total}</p>
-        </div>
         </div>`
         break
       case 'run':
@@ -190,27 +179,6 @@ async function python (setup, params) {
           }
         }
         report += `<span class=${pf}>${pf}</span>
-        </div>
-        <p class="header studentFiles">Submitted files</p>
-        <div class="studentFiles">
-        <p class="caption">${name}:</p>
-        <pre class="output">${code}
-        </pre>
-        </div>
-        <p class="header providedFiles">Provided files</p>
-        <div class="providedFiles">`
-        if (setup.useFiles !== undefined) {
-          for ([key, file] of Object.entries(setup.useFiles)) {
-            report += `<p class="caption">${key}:</p>
-            <pre class="output">${file}
-            </pre>`
-          }
-        }
-        report += `</div>
-        <p class="header score">Score</p>
-        <div class="score">
-        <p class="score">${correct}/${total}</p>
-        </div>
         </div>`
         break
       case 'sub':
@@ -247,17 +215,6 @@ async function python (setup, params) {
           }
         }
         report += `</table>
-        </div>
-        <p class="header studentFiles">Submitted files</p>
-        <div class="studentFiles">
-        <p class="caption">${name}:</p>
-        <pre class="output">${code}
-        </pre>
-        </div>
-        <p class="header score">Score</p>
-        <div class="score">
-        <p class="score">${correct}/${total}</p>
-        </div>
         </div>`
         break
       case 'unitTest':
@@ -286,8 +243,12 @@ async function python (setup, params) {
           }
         }
         report += `<span class=${pf}>${pf}</span>
-        </div>
-        <p class="header studentFiles">Submitted files</p>
+        </div>`
+        break
+      case 'tester': // TODO: Write this method
+        break
+    }
+    report += `<p class="header studentFiles">Submitted files</p>
         <div class="studentFiles">
         <p class="caption">${name}:</p>
         <pre class="output">${code}
@@ -295,23 +256,19 @@ async function python (setup, params) {
         </div>
         <p class="header providedFiles">Provided files</p>
         <div class="providedFiles">`
-        if (setup.useFiles !== undefined) {
-          for ([key, file] of Object.entries(setup.useFiles)) {
-            report += `<p class="caption">${key}:</p>
+    if (setup.useFiles !== undefined) {
+      for ([key, file] of Object.entries(setup.useFiles)) {
+        report += `<p class="caption">${key}:</p>
             <pre class="output">${file}
             </pre>`
-          }
-        }
-        report += `</div>
+      }
+    }
+    report += `</div>
         <p class="header score">Score</p>
         <div class="score">
         <p class="score">${correct}/${total}</p>
         </div>
         </div>`
-        break
-      case 'tester': // TODO: Write this method
-        break
-    }
   }
   report += '</body></html>'
   return { report }
