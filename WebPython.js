@@ -241,7 +241,41 @@ async function python (setup, params) {
         }
         report += `<span class=${pf}>${pf}</span>`
         break
-      case 'tester': // TODO: Write this method
+      case 'tester':
+        report += `<p class="header tester">Testers</p>
+        <div class="run">`
+        // Iterrate over runs array
+        for (let j = 0; j < setup.sections[i].runs.length; j++) {
+          try {
+            initialize(code)
+            // Run any other needed files
+            if (setup.useFiles !== undefined) {
+              const fileName = name.slice(0, -3) // Get the user's file's name
+              // Remove any importing of the user's file because it's functions were initialized
+              newCode = setup.useFiles[setup.sections[i].runs[j].caption]
+                .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
+                .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
+                  p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
+                )
+                .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
+              console.log(newCode)
+              pyodide.runPython(newCode) // Run the unit tests
+            }
+            let HTMLoutput = '<pre class=\'output\'>'
+            const expectedOutputs = setup.sections[i].runs[j].output.split('\n').filter(n => n)
+            const outputs = getOutput().split('\n')
+            for (let k = 0; k < expectedOutputs.length; k++) {
+              pf = check(expectedOutputs[k], outputs[k], 1)
+              HTMLoutput += `${outputs[k]}
+<span class=${pf}>${expectedOutputs[++k]}</span>\n`
+              report += `<span class=${pf}>${pf}</span> `
+            }
+            total = outputs.length / 2
+            report += HTMLoutput
+          } catch (err) {
+            setText(err, OUTPUT)
+          }
+        }
         break
     }
     report += `</div>

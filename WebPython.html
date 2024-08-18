@@ -27,19 +27,22 @@
         horstmann_codecheck.setup.push({
             "sections": [
                 {
-                    "type": "run",
+                    "type": "tester",
                     "runs": [
                         {
-                            "input": "3\n-3\n0\n",
-                            "output": "Enter a number, 0 to quit: 3\n9\nEnter a number, 0 to quit: -3\n9\nEnter a number, 0 to quit: 0"
+                            "caption": "numbersTester.py",
+                            "output": "9\nExpected: 9\n9\nExpected: 9\n0\nExpected: 0\n"
                         }
                     ]
                 }
             ],
             "requiredFiles": {
-                "testing.py": {
-                    "editors": [null, "while True:\n  n = int(input('Enter a number, 0 to quit: '))\n  if n == 0:\n    break\n  print(n*n)"]
+                "numbers.py": {
+                    "editors": [null, "def square(n):\n  return n*n"]
                 }
+            },
+            "useFiles": {
+                "numbersTester.py": "from numbers import square\n\nprint(square(3))\nprint(\"Expected: 9\");\nprint(square(-3))\nprint(\"Expected: 9\");\nprint(square(0))\nprint(\"Expected: 0\");\n"
             },
             "description": "testing"
         })
