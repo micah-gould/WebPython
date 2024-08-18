@@ -25,8 +25,9 @@ window.addEventListener('load', async () => {
   const START = Date.now()
   // Load Pyodide
   pyodide = await loadPyodide({
-    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.20.0/full/',
-    stdout: (msg) => { addText(`\nPyodide: ${msg}`, OUTPUT) }
+    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
+    stdout: (msg) => { addText(`\nPyodide: ${msg}`, OUTPUT) },
+    stderr: (msg) => { addText(`${msg}\n`, OUTPUT) } // Unit Test raise the output as warning, so this redirects them to the output
   })
   // data Pyodide output
   pyodide.runPython(`
@@ -71,7 +72,7 @@ async function python (setup, params) {
     OUTPUT.value = '' // Clear output
     const name = Object.keys(setup.requiredFiles)[i]
     const code = params[name] // Get python code
-    const total = setup.sections[i]?.runs.length
+    let total = setup.sections[i]?.runs.length
     let pf
     let output
     let correct = 0
@@ -86,14 +87,18 @@ async function python (setup, params) {
         setText(err, OUTPUT)
       }
     }
-    function check (expectedOutput) {
+    function getOutput () {
       output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
       stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
       addText(output + '\n', OUTPUT)
+      return outptut
+    }
+    function check (expectedOutput, output, weight) {
+      total += weight - 1
       if (expectedOutput !== output) { // Check if output was correct
         return 'fail'
       }
-      correct++
+      correct += weight
       return 'pass'
     }
     switch (setup.sections[i].type) { // TODO: Review all the current methods and make sure they work
@@ -108,7 +113,7 @@ async function python (setup, params) {
           const input = setup.sections[i].runs[j].args[0].value
           try {
             pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
-            pf = check(setup.sections[i].runs[j].output)
+            pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
             report += `<tr><td><span class=${pf}>${pf}</span></td>
               <td><pre>${name.split('.')[0]}</pre></td>
               <td><pre>${input}</pre></td>
@@ -157,7 +162,7 @@ async function python (setup, params) {
                 pyodide.runPython(newCode)
               }
             }
-            pf = check(setup.sections[i].runs[j].output)
+            pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
           } catch (err) {
             setText(err, OUTPUT)
           }
@@ -202,7 +207,7 @@ async function python (setup, params) {
               newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
             }
             pyodide.runPython(newCode) // Run each testcase
-            pf = check(setup.sections[i].runs[j].output)
+            pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
             report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name.split('.')[0]}</pre></td>`
             for (arg of setup.sections[i].runs[j].args) {
@@ -231,7 +236,52 @@ async function python (setup, params) {
         </div>
         </div>`
         break
-      case 'unitTest': // TODO: Write this method
+      case 'unitTest':
+        report += `<p class="header unitTest">Unit Tests</p>
+        <div class="run">`
+        for (let j = 0; j < setup.sections[i].runs.length; j++) {
+          try {
+            initialize(code)
+            if (setup.useFiles !== undefined) {
+              for (file of Object.values(setup.useFiles)) {
+                const fileName = name.slice(0, -3)
+                newCode = file
+                  .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
+                  .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
+                    p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
+                  )
+                  .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '') + '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())'
+                pyodide.runPython(newCode)
+              }
+            }
+            pf = check('OK', OUTPUT.value.split('\n')[4], parseInt(OUTPUT.value.split('\n')[2].match(/\d+/)[0]))
+          } catch (err) {
+            setText(err, OUTPUT)
+          }
+        }
+        report += `<span class=${pf}>${pf}</span>
+        </div>
+        <p class="header studentFiles">Submitted files</p>
+        <div class="studentFiles">
+        <p class="caption">${name}:</p>
+        <pre class="output">${code}
+        </pre>
+        </div>
+        <p class="header providedFiles">Provided files</p>
+        <div class="providedFiles">`
+        if (setup.useFiles !== undefined) {
+          for ([key, file] of Object.entries(setup.useFiles)) {
+            report += `<p class="caption">${key}:</p>
+            <pre class="output">${file}
+            </pre>`
+          }
+        }
+        report += `</div>
+        <p class="header score">Score</p>
+        <div class="score">
+        <p class="score">${correct}/${total}</p>
+        </div>
+        </div>`
         break
       case 'tester': // TODO: Write this method
         break
