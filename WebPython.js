@@ -91,7 +91,7 @@ async function python (setup, params) {
       output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
       stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
       addText(output + '\n', OUTPUT)
-      return outptut
+      return output
     }
     function check (expectedOutput, output, weight) {
       total += weight - 1
@@ -149,9 +149,9 @@ async function python (setup, params) {
             if (code.indexOf('input') !== -1) {
               const str = 'next(inputs)'
               newCode = `inputs = iter([${inputs}])\n${code.replace(/input\((.*?)\)/, str)}` // Switch user input to computer input
-              const index = newCode.indexOf(')', newCode.indexOf(str) + str.length) + 1
+              const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
               const prompt = (str, start, end) => str.substring(str.indexOf(start) + start.length, str.indexOf(end, str.indexOf(start) + start.length))
-              newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f${prompt(code, 'input(', ')').slice(0, -1)}{n}")` + newCode.slice(index) // Print the input question and inputed value
+              newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${prompt(code, 'input(', ')').slice(1, -1)}{${code.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]}}")` + newCode.slice(index) // Print the input question and inputed value
               pyodide.runPython(newCode) // Run each testcase
             } else {
               initialize(code)

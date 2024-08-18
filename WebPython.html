@@ -27,22 +27,19 @@
         horstmann_codecheck.setup.push({
             "sections": [
                 {
-                    "type": "unitTest",
+                    "type": "run",
                     "runs": [
                         {
-                            "caption": "NumbersTest.py",
-                            "output": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nOK\n"
+                            "input": "3\n-3\n0\n",
+                            "output": "Enter a number, 0 to quit: 3\n9\nEnter a number, 0 to quit: -3\n9\nEnter a number, 0 to quit: 0"
                         }
                     ]
                 }
             ],
             "requiredFiles": {
-                "numbers.py": {
-                    "editors": [null, 'def square(n):\n  return n*n']
+                "testing.py": {
+                    "editors": [null, "while True:\n  n = int(input('Enter a number, 0 to quit: '))\n  if n == 0:\n    break\n  print(n*n)"]
                 }
-            },
-            "useFiles": {
-                "NumbersTest.py": "import unittest, numbers\n\n\nclass NumbersTest(unittest.TestCase):\n\n  def testNonNegativeSquares(self):\n    for n in range(100):\n      self.assertEqual(n*n, numbers.square(n))\n\n  def testNegativeSquares(self):\n    for n in range(100):\n      self.assertEqual(n*n, numbers.square(-n))"
             },
             "description": "testing"
         })
