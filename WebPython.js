@@ -169,13 +169,21 @@ async function python (setup, params) {
             } else {
               initialize(code) // Run each testcase
             }
+
             // Run any other needed files
             if (setup.useFiles !== undefined) {
-              for (file of Object.values(setup.useFiles)) {
-                newCode = file.replace(/from\s+\S+\s+import\s+\S+/g, '')
-                pyodide.runPython(newCode)
-              }
+              const fileName = name.slice(0, -3) // Get the user's file's name
+              // Remove any importing of the user's file because it's functions were initialized
+              newCode = setup.useFiles[setup.sections[i].runs[j].caption]
+                .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
+                .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
+                  p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
+                )
+                .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '') + '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())'
+
+              pyodide.runPython(newCode)
             }
+
             pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
           } catch (err) {
             setText(err, OUTPUT)
