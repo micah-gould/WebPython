@@ -1,7 +1,8 @@
-/* eslint no-undef: off, no-unused-vars: off
+/* eslint no-undef: off, no-unused-vars: off, eqeqeq: off
     -------------
     no-undef is off because loadPyodide doesn't need to be declared locally
-    no-unused-vars is off because the function Python is written in this file but called from another */
+    no-unused-vars is off because the function Python is written in this file but called from another
+    eqeqeq if off so that an int can be comapred to a string */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let OUTPUT, pyodide, addText, setText // Variables that need to be global
@@ -82,10 +83,7 @@ async function python (setup, params) {
     // Function to initialize the code
     function initialize (input) {
       try {
-        pyodide.runPython('print("")') // TODO: idk why this needs to be here, but it breaks if I remove it, need to test it a bit
         pyodide.runPython(input) // Run python
-        // TODO: check if this is still necessary
-        getOutput()
       } catch (err) {
         setText(err, OUTPUT)
       }
@@ -95,6 +93,7 @@ async function python (setup, params) {
     function getOutput () {
       output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
       stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+      if (output === '') return OUTPUT.value
       addText(output + '\n', OUTPUT)
       return output
     }
@@ -102,7 +101,7 @@ async function python (setup, params) {
     // Function to compare the given output with the expected output and update all nessasary variables
     function check (expectedOutput, output, weight) {
       total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
-      if (expectedOutput !== output) { // Check if output was correct
+      if (expectedOutput != output) { // Check if output was correct
         return 'fail'
       }
       correct += weight
@@ -122,7 +121,9 @@ async function python (setup, params) {
 
           try {
             pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
-            pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
+            const output = getOutput()
+            const expectedOutput = setup.sections[i].runs[j].output
+            pf = check(expectedOutput, output, 1)
             report += `<tr><td><span class=${pf}>${pf}</span></td>
               <td><pre>${name.split('.')[0]}</pre></td>
               <td><pre>${input}</pre></td>
@@ -162,16 +163,15 @@ async function python (setup, params) {
             if (setup.useFiles !== undefined) {
               const fileName = name.slice(0, -3) // Get the user's file's name
               // Remove any importing of the user's file because it's functions were initialized
-              newCode = setup.useFiles[setup.sections[i].runs[j].caption]
+              newCode = Object.values(setup.useFiles)[0]
                 .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
                 .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
                   p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
                 )
-                .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '') + '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())'
+                .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
 
               pyodide.runPython(newCode)
             }
-
             pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
           } catch (err) {
             setText(err, OUTPUT)
@@ -197,7 +197,9 @@ async function python (setup, params) {
               newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
             }
             pyodide.runPython(newCode) // Run each testcase
-            pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
+            const output = getOutput()
+            const expectedOutput = setup.sections[i].runs[j].output
+            pf = check(expectedOutput, output, 1)
             report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name.split('.')[0]}</pre></td>`
             for (arg of setup.sections[i].runs[j].args) {
@@ -258,7 +260,6 @@ async function python (setup, params) {
                   p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
                 )
                 .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
-              console.log(newCode)
               pyodide.runPython(newCode) // Run the unit tests
             }
             let HTMLoutput = '<pre class=\'output\'>'

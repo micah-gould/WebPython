@@ -1,56 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
-    <script src="horstmann_codecheck.js"></script>
-    <script src="codecheck2.js"></script>
-    <script src="util.js"></script>
-    <script src="/ace/ace.js"></script>
-    <script src="/ace/theme-kuroir.js"></script>
-    <script src="/ace/theme-chrome.js"></script>
-    <script src="WebPython.js"></script>
-    <link type="text/css" rel="stylesheet" href="WebPython.css" />
-    <link type="text/css" rel="stylesheet" href="codecheck.css" />
-    <link type="text/css" rel="stylesheet" href="horstmann_codecheck.css" />
-  </head>
 
-  <body>
-    <h4>OUTPUT</h4>
-    <textarea disabled id="output" class="text"></textarea>
-    <div id="description"></div>
-    <div class="horstmann_codecheck"></div>
-    <script type="text/javascript">
-      horstmann_codecheck.setup.push({
-        sections: [
-          {
-            type: "call",
-            runs: [
-              {
-                caption: "average",
-                args: [{ name: "Arguments", value: "3, 4" }],
-                output: "3.5\n\n",
-              },
-              {
-                caption: "average",
-                args: [{ name: "Arguments", value: "-3, 3" }],
-                output: "0.0\n\n",
-              },
-              {
-                caption: "average",
-                args: [{ name: "Arguments", value: "3, 0" }],
-                output: "1.5\n\n",
-              },
-            ],
-          },
-        ],
-        requiredFiles: {
-          "avg.py": {
-            editors: ["def average(x, y) :\n    return 0.5*(x+y)\n"],
-          },
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="horstmann_codecheck.js"></script>
+  <script src="codecheck2.js"></script>
+  <script src="util.js"></script>
+  <script src="/ace/ace.js"></script>
+  <script src="/ace/theme-kuroir.js"></script>
+  <script src="/ace/theme-chrome.js"></script>
+  <script src="WebPython.js"></script>
+  <link type="text/css" rel="stylesheet" href="WebPython.css" />
+  <link type="text/css" rel="stylesheet" href="codecheck.css" />
+  <link type="text/css" rel="stylesheet" href="horstmann_codecheck.css" />
+</head>
+
+<body>
+  <h4>OUTPUT</h4>
+  <textarea disabled id="output" class="text"></textarea>
+  <div id="description"></div>
+  <div class="horstmann_codecheck"></div>
+  <script type="text/javascript">
+    horstmann_codecheck.setup.push({
+      sections: [
+        {
+          type: "call",
+          runs: [
+            {
+              caption: "average",
+              args: [{ name: "Arguments", value: "3, 4" }],
+              output: "3.5",
+            },
+            {
+              caption: "average",
+              args: [{ name: "Arguments", value: "-3, 3" }],
+              output: "0.0",
+            },
+            {
+              caption: "average",
+              args: [{ name: "Arguments", value: "3, 0" }],
+              output: "1.5",
+            },
+          ],
         },
-      });
-    </script>
-  </body>
+      ],
+      requiredFiles: {
+        "avg.py": {
+          editors: ["def average(x, y) :\n    return 0.5*(x+y)\n"],
+        },
+      },
+    });
+  </script>
+</body>
+
 </html>

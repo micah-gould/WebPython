@@ -1,46 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
-    <script src="horstmann_codecheck.js"></script>
-    <script src="codecheck2.js"></script>
-    <script src="util.js"></script>
-    <script src="/ace/ace.js"></script>
-    <script src="/ace/theme-kuroir.js"></script>
-    <script src="/ace/theme-chrome.js"></script>
-    <script src="WebPython.js"></script>
-    <link type="text/css" rel="stylesheet" href="WebPython.css" />
-    <link type="text/css" rel="stylesheet" href="codecheck.css" />
-    <link type="text/css" rel="stylesheet" href="horstmann_codecheck.css" />
-  </head>
 
-  <body>
-    <h4>OUTPUT</h4>
-    <textarea disabled id="output" class="text"></textarea>
-    <div id="description"></div>
-    <div class="horstmann_codecheck"></div>
-    <script type="text/javascript">
-      horstmann_codecheck.setup.push({
-        sections: [
-          {
-            type: "run",
-            runs: [
-              { input: "", output: "0\n1\n4\n9\n16\n25\n36\n49\n64\n81\n" },
-            ],
-          },
-        ],
-        requiredFiles: {
-          "numbers.py": {
-            editors: [null, "def square(n) :\n", "    return n*n\n"],
-          },
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="horstmann_codecheck.js"></script>
+  <script src="codecheck2.js"></script>
+  <script src="util.js"></script>
+  <script src="/ace/ace.js"></script>
+  <script src="/ace/theme-kuroir.js"></script>
+  <script src="/ace/theme-chrome.js"></script>
+  <script src="WebPython.js"></script>
+  <link type="text/css" rel="stylesheet" href="WebPython.css" />
+  <link type="text/css" rel="stylesheet" href="codecheck.css" />
+  <link type="text/css" rel="stylesheet" href="horstmann_codecheck.css" />
+</head>
+
+<body>
+  <h4>OUTPUT</h4>
+  <textarea disabled id="output" class="text"></textarea>
+  <div id="description"></div>
+  <div class="horstmann_codecheck"></div>
+  <script type="text/javascript">
+    horstmann_codecheck.setup.push({
+      sections: [
+        {
+          type: "run",
+          runs: [
+            { input: "", output: "0\n1\n4\n9\n16\n25\n36\n49\n64\n81" },
+          ],
         },
-        useFiles: {
-          "numbersRunner.py":
-            "from numbers import square\n\ndef main() :\n   for i in range(0, 10) :\n      print(square(i))\n\nmain()      \n",
+      ],
+      requiredFiles: {
+        "numbers.py": {
+          editors: [null, "def square(n) :\n", "    return n*n\n"],
         },
-      });
-    </script>
-  </body>
+      },
+      useFiles: {
+        "numbersRunner.py":
+          "from numbers import square\n\ndef main() :\n   for i in range(0, 10) :\n      print(square(i))\n\nmain()      \n",
+      },
+    });
+  </script>
+</body>
+
 </html>
