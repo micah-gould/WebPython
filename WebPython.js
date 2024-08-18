@@ -243,16 +243,14 @@ async function python (setup, params) {
           try {
             initialize(code)
             if (setup.useFiles !== undefined) {
-              for (file of Object.values(setup.useFiles)) {
-                const fileName = name.slice(0, -3)
-                newCode = file
-                  .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
-                  .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
-                    p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
-                  )
-                  .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '') + '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())'
-                pyodide.runPython(newCode)
-              }
+              const fileName = name.slice(0, -3)
+              newCode = setup.useFiles[setup.sections[i].runs[j].caption]
+                .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
+                .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
+                  p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
+                )
+                .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '') + '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())'
+              pyodide.runPython(newCode)
             }
             pf = check('OK', OUTPUT.value.split('\n')[4], parseInt(OUTPUT.value.split('\n')[2].match(/\d+/)[0]))
           } catch (err) {
