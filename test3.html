@@ -25,25 +25,33 @@
       horstmann_codecheck.setup.push({
         sections: [
           {
-            type: "tester",
+            type: "call",
             runs: [
               {
-                caption: "numbersTester.py",
-                output: "9\nExpected: 9\n9\nExpected: 9\n0\nExpected: 0\n",
+                caption: "average",
+                args: [{ name: "Arguments", value: "3, 4" }],
+                output: "3.5\n\n",
+              },
+              {
+                caption: "average",
+                args: [{ name: "Arguments", value: "-3, 3" }],
+                output: "0.0\n\n",
+              },
+              {
+                caption: "average",
+                args: [{ name: "Arguments", value: "3, 0" }],
+                output: "1.5\n\n",
               },
             ],
           },
         ],
         requiredFiles: {
           "numbers.py": {
-            editors: [null, "def square(n):\n  return n*n"],
+            editors: [null, "def average(x, y) :\n", "    return 0.5*(x+y)\n"],
           },
         },
-        useFiles: {
-          "numbersTester.py":
-            'from numbers import square\n\nprint(square(3))\nprint("Expected: 9");\nprint(square(-3))\nprint("Expected: 9");\nprint(square(0))\nprint("Expected: 0");\n',
-        },
-        description: "testing",
+        description:
+          "<p>Write a function <code>average</code> that returns the average of two numbers.</p>\n",
       });
     </script>
   </body>

@@ -25,25 +25,25 @@
       horstmann_codecheck.setup.push({
         sections: [
           {
-            type: "tester",
+            type: "run",
             runs: [
               {
-                caption: "numbersTester.py",
-                output: "9\nExpected: 9\n9\nExpected: 9\n0\nExpected: 0\n",
+                input: "3\n-3\n0\n",
+                output:
+                  "Enter a number, 0 to quit: 9\nEnter a number, 0 to quit: 9\nEnter a number, 0 to quit: ",
               },
             ],
           },
         ],
         requiredFiles: {
           "numbers.py": {
-            editors: [null, "def square(n):\n  return n*n"],
+            editors: [
+              'while True :\n  n = int(intput("Enter a number, 0 to quit: "))\n  if n == 0:\n      break\n    print(n*n)',
+            ],
           },
         },
-        useFiles: {
-          "numbersTester.py":
-            'from numbers import square\n\nprint(square(3))\nprint("Expected: 9");\nprint(square(-3))\nprint("Expected: 9");\nprint(square(0))\nprint("Expected: 0");\n',
-        },
-        description: "testing",
+        description:
+          "<p>Write a program that reads integers and prints their squares. Stop at\nthe sentinel 0.</p>\n",
       });
     </script>
   </body>

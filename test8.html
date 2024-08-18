@@ -25,25 +25,23 @@
       horstmann_codecheck.setup.push({
         sections: [
           {
-            type: "tester",
+            type: "unitTest",
             runs: [
               {
-                caption: "numbersTester.py",
-                output: "9\nExpected: 9\n9\nExpected: 9\n0\nExpected: 0\n",
+                caption: "NumbersTest.py",
+                output:
+                  "..\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
               },
             ],
           },
         ],
         requiredFiles: {
-          "numbers.py": {
-            editors: [null, "def square(n):\n  return n*n"],
-          },
+          "numbers.py": { editors: ["def square(n):\n  return n*n"] },
         },
         useFiles: {
-          "numbersTester.py":
-            'from numbers import square\n\nprint(square(3))\nprint("Expected: 9");\nprint(square(-3))\nprint("Expected: 9");\nprint(square(0))\nprint("Expected: 0");\n',
+          "NumbersTest.py":
+            "import unittest, numbers\n\nclass NumbersTest(unittest.TestCase):\n\n    def testNonNegativeSquares(self):\n        for n in range(100):\n            self.assertEqual(n * n, numbers.square(n))\n\n    def testNegativeSquares(self):\n        for n in range(1, 100):\n            self.assertEqual(n * n, numbers.square(-n))\n",
         },
-        description: "testing",
       });
     </script>
   </body>

@@ -25,25 +25,22 @@
       horstmann_codecheck.setup.push({
         sections: [
           {
-            type: "tester",
+            type: "run",
             runs: [
-              {
-                caption: "numbersTester.py",
-                output: "9\nExpected: 9\n9\nExpected: 9\n0\nExpected: 0\n",
-              },
+              { input: "", output: "0\n1\n4\n9\n16\n25\n36\n49\n64\n81\n" },
             ],
           },
         ],
         requiredFiles: {
           "numbers.py": {
-            editors: [null, "def square(n):\n  return n*n"],
+            editors: [
+              null,
+              "def square(n) :\n",
+              "    return n*n\n",
+              "\nfor i in range(0, 10) :\n   print(square(i))\n",
+            ],
           },
         },
-        useFiles: {
-          "numbersTester.py":
-            'from numbers import square\n\nprint(square(3))\nprint("Expected: 9");\nprint(square(-3))\nprint("Expected: 9");\nprint(square(0))\nprint("Expected: 0");\n',
-        },
-        description: "testing",
       });
     </script>
   </body>
