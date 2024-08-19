@@ -107,175 +107,163 @@ async function python (setup, params) {
       correct += weight
       return 'pass'
     }
-    switch (setup.sections[i].type) { // TODO: Review all the current methods and make sure they work
-      case 'call':
-        report += `<p class="header call">Calling with Arguments</p>
-        <div class="call">
-        <table class="run">
-        <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n`
-        initialize(code)
-        // Itterrate over the runs array
-        for (let j = 0; j < setup.sections[i].runs.length; j++) {
-          const func = setup.sections[i].runs[j].caption // Get function name
-          const input = setup.sections[i].runs[j].args[0].value // Get the inputs
 
-          try {
-            pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
-            const output = getOutput()
-            const expectedOutput = setup.sections[i].runs[j].output
-            pf = check(expectedOutput, output, 1)
-            report += `<tr><td><span class=${pf}>${pf}</span></td>
-              <td><pre>${name.split('.')[0]}</pre></td>
-              <td><pre>${input}</pre></td>
-              <td><pre>${output}
-              </pre></td>
-              <td><pre>${expectedOutput}
-              </pre></td>
-              </tr>\n`
-          } catch (err) {
-            setText(err, OUTPUT)
-          }
-        }
-        report += '</table>'
-        break
-      case 'run':
-        report += `<p class="header run">Running ${name}</p>
-        <div class="run">`
-        // Itterrate over the runs array
-        for (let j = 0; j < setup.sections[i].runs.length; j++) {
-          const inputs = setup.sections[i].runs[j].input.split('\n') // Get the inputs
+    function useFiles (unitTest) {
+      // Run any other needed files
+      if (setup.useFiles !== undefined) {
+        const fileName = name.slice(0, -3) // Get the user's file's name
+        // Remove any importing of the user's file because it's functions were initialized
+        newCode = Object.values(setup.useFiles)[0]
+          .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
+          .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
+            p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
+          )
+          .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
+        newCode += unitTest ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : ''
+        pyodide.runPython(newCode)
+      }
+    }
 
-          try {
-            if (code.indexOf('input') !== -1) {
-              // Replace a user input with a computer input FIXME: only works when there is 1 input
-              const str = 'next(inputs)'
-              newCode = `inputs = iter([${inputs}])\n${code.replace(/input\((.*?)\)/, str)}` // Switch user input to computer input
-              const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
-              const prompt = (str, start, end) => str.substring(str.indexOf(start) + start.length, str.indexOf(end, str.indexOf(start) + start.length))
-              newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${prompt(code, 'input(', ')').slice(1, -1)}{${code.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]}}")` + newCode.slice(index) // Print the input question and inputed value
+    function run () {
+      report += `<p class="header run">Running ${name}</p>\n<div class="run">`
+      // Itterrate over the runs array
+      for (let j = 0; j < setup.sections[i].runs.length; j++) {
+        const inputs = setup.sections[i].runs[j].input.split('\n') // Get the inputs
 
-              pyodide.runPython(newCode) // Run each testcase
-            } else {
-              initialize(code) // Run each testcase
-            }
+        try {
+          if (code.indexOf('input') !== -1) {
+          // Replace a user input with a computer input FIXME: only works when there is 1 input
+            const str = 'next(inputs)'
+            newCode = `inputs = iter([${inputs}])\n${code.replace(/input\((.*?)\)/, str)}` // Switch user input to computer input
+            const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
+            const prompt = (str, start, end) => str.substring(str.indexOf(start) + start.length, str.indexOf(end, str.indexOf(start) + start.length))
+            newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${prompt(code, 'input(', ')').slice(1, -1)}{${code.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]}}")` + newCode.slice(index) // Print the input question and inputed value
 
-            // Run any other needed files
-            if (setup.useFiles !== undefined) {
-              const fileName = name.slice(0, -3) // Get the user's file's name
-              // Remove any importing of the user's file because it's functions were initialized
-              newCode = Object.values(setup.useFiles)[0]
-                .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
-                .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
-                  p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
-                )
-                .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
-
-              pyodide.runPython(newCode)
-            }
-            pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
-          } catch (err) {
-            setText(err, OUTPUT)
-          }
-        }
-        report += `<span class=${pf}>${pf}</span>`
-        break
-      case 'sub':
-        report += `<p class="header sub">Running program with substitutions</p>
-        <div class="sub">
-        <table class="run">
-        <tr><th>&#160;</th><th>Name</th>`
-        for (arg of setup.sections[i].runs[0].args) {
-          report += `<th>${arg.name}</th>`
-        }
-        report += '<th>Actual</th><th>Expected</th></tr>\n'
-        // Itterate over the runs array
-        for (let j = 0; j < setup.sections[i].runs.length; j++) {
-          try {
-            let newCode = code // Copy the code
-            // Replace the variables with their new values
-            for (arg of setup.sections[i].runs[j].args) {
-              newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
-            }
             pyodide.runPython(newCode) // Run each testcase
-            const output = getOutput()
-            const expectedOutput = setup.sections[i].runs[j].output
-            pf = check(expectedOutput, output, 1)
-            report += `<tr><td><span class=${pf}>${pf}</span></td>
-            <td><pre>${name.split('.')[0]}</pre></td>`
-            for (arg of setup.sections[i].runs[j].args) {
-              report += `<td><pre>${arg.value}</pre></td>`
-            }
-            report += `<td><pre>${output}
+          } else {
+            initialize(code) // Run each testcase
+          }
+          useFiles()
+          pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
+        } catch (err) {
+          setText(err, OUTPUT)
+        }
+      }
+      report += `<span class=${pf}>${pf}</span>`
+    }
+    function call () {
+      report += `<p class="header call">Calling with Arguments</p>
+      <div class="call">
+      <table class="run">
+      <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n`
+      initialize(code)
+      // Itterrate over the runs array
+      for (let j = 0; j < setup.sections[i].runs.length; j++) {
+        const func = setup.sections[i].runs[j].caption // Get function name
+        const input = setup.sections[i].runs[j].args[0].value // Get the inputs
+        try {
+          pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
+          const output = getOutput()
+          const expectedOutput = setup.sections[i].runs[j].output
+          pf = check(expectedOutput, output, 1)
+          report += `<tr><td><span class=${pf}>${pf}</span></td>
+            <td><pre>${name.split('.')[0]}</pre></td>
+            <td><pre>${input}</pre></td>
+            <td><pre>${output}
             </pre></td>
             <td><pre>${expectedOutput}
             </pre></td>
             </tr>\n`
-          } catch (err) {
-            setText(err, OUTPUT)
-          }
+        } catch (err) {
+          setText(err, OUTPUT)
         }
-        report += '</table>'
+      }
+      report += '</table>'
+    }
+    function sub () {
+      report += `<p class="header sub">Running program with substitutions</p>
+      <div class="sub">
+      <table class="run">
+      <tr><th>&#160;</th><th>Name</th>`
+      for (arg of setup.sections[i].runs[0].args) {
+        report += `<th>${arg.name}</th>`
+      }
+      report += '<th>Actual</th><th>Expected</th></tr>\n'
+      // Itterate over the runs array
+      for (let j = 0; j < setup.sections[i].runs.length; j++) {
+        try {
+          let newCode = code // Copy the code
+          // Replace the variables with their new values
+          for (arg of setup.sections[i].runs[j].args) {
+            newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
+          }
+          pyodide.runPython(newCode) // Run each testcase
+          const output = getOutput()
+          const expectedOutput = setup.sections[i].runs[j].output
+          pf = check(expectedOutput, output, 1)
+          report += `<tr><td><span class=${pf}>${pf}</span></td>
+            <td><pre>${name.split('.')[0]}</pre></td>`
+          for (arg of setup.sections[i].runs[j].args) {
+            report += `<td><pre>${arg.value}</pre></td>`
+          }
+          report += `<td><pre>${output}\n</pre></td>\n<td><pre>${expectedOutput}\n</pre></td>\n</tr>\n`
+        } catch (err) {
+          setText(err, OUTPUT)
+        }
+      }
+      report += '</table>'
+    }
+    function unitTest () {
+      report += '<p class="header unitTest">Unit Tests</p>\n<div class="run">'
+      // Iterrate over runs array
+      for (let j = 0; j < setup.sections[i].runs.length; j++) {
+        try {
+          initialize(code)
+          useFiles(true)
+          pf = check('OK', OUTPUT.value.split('\n')[4], parseInt(OUTPUT.value.split('\n')[2].match(/\d+/)[0]))
+        } catch (err) {
+          setText(err, OUTPUT)
+        }
+      }
+      report += `<span class=${pf}>${pf}</span>`
+    }
+    function tester () {
+      report += '<p class="header tester">Testers</p>\n<div class="run">'
+      // Iterrate over runs array
+      for (let j = 0; j < setup.sections[i].runs.length; j++) {
+        try {
+          initialize(code)
+          useFiles()
+          let HTMLoutput = '<pre class=\'output\'>'
+          const expectedOutputs = setup.sections[i].runs[j].output.split('\n').filter(n => n)
+          const outputs = getOutput().split('\n')
+          for (let k = 0; k < expectedOutputs.length; k++) {
+            pf = check(expectedOutputs[k], outputs[k], 1)
+            HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
+            report += `<span class=${pf}>${pf}</span> `
+          }
+          total = outputs.length / 2
+          report += HTMLoutput
+        } catch (err) {
+          setText(err, OUTPUT)
+        }
+      }
+    }
+    switch (setup.sections[i].type) { // TODO: Review all the current methods and make sure they work
+      case 'call':
+        call()
+        break
+      case 'run':
+        run()
+        break
+      case 'sub':
+        sub()
         break
       case 'unitTest':
-        report += `<p class="header unitTest">Unit Tests</p>
-        <div class="run">`
-        // Iterrate over runs array
-        for (let j = 0; j < setup.sections[i].runs.length; j++) {
-          try {
-            initialize(code)
-            // Run any other needed files
-            if (setup.useFiles !== undefined) {
-              const fileName = name.slice(0, -3) // Get the user's file's name
-              // Remove any importing of the user's file because it's functions were initialized
-              newCode = setup.useFiles[setup.sections[i].runs[j].caption]
-                .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
-                .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
-                  p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
-                )
-                .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '') + '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())'
-
-              pyodide.runPython(newCode) // Run the unit tests
-            }
-            pf = check('OK', OUTPUT.value.split('\n')[4], parseInt(OUTPUT.value.split('\n')[2].match(/\d+/)[0]))
-          } catch (err) {
-            setText(err, OUTPUT)
-          }
-        }
-        report += `<span class=${pf}>${pf}</span>`
+        unitTest()
         break
       case 'tester':
-        report += `<p class="header tester">Testers</p>
-        <div class="run">`
-        // Iterrate over runs array
-        for (let j = 0; j < setup.sections[i].runs.length; j++) {
-          try {
-            initialize(code)
-            // Run any other needed files
-            if (setup.useFiles !== undefined) {
-              const fileName = name.slice(0, -3) // Get the user's file's name
-              // Remove any importing of the user's file because it's functions were initialized
-              newCode = setup.useFiles[setup.sections[i].runs[j].caption]
-                .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
-                .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
-                  p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
-                )
-                .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
-              pyodide.runPython(newCode) // Run the unit tests
-            }
-            let HTMLoutput = '<pre class=\'output\'>'
-            const expectedOutputs = setup.sections[i].runs[j].output.split('\n').filter(n => n)
-            const outputs = getOutput().split('\n')
-            for (let k = 0; k < expectedOutputs.length; k++) {
-              pf = check(expectedOutputs[k], outputs[k], 1)
-              HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
-              report += `<span class=${pf}>${pf}</span> `
-            }
-            total = outputs.length / 2
-            report += HTMLoutput
-          } catch (err) {
-            setText(err, OUTPUT)
-          }
-        }
+        tester()
         break
     }
     report += `</div>
