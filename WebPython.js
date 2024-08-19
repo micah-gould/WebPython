@@ -267,8 +267,7 @@ async function python (setup, params) {
             const outputs = getOutput().split('\n')
             for (let k = 0; k < expectedOutputs.length; k++) {
               pf = check(expectedOutputs[k], outputs[k], 1)
-              HTMLoutput += `${outputs[k]}
-<span class=${pf}>${expectedOutputs[++k]}</span>\n`
+              HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
               report += `<span class=${pf}>${pf}</span> `
             }
             total = outputs.length / 2
