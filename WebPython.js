@@ -113,7 +113,7 @@ async function python (setup, params) {
       if (setup.useFiles !== undefined) {
         const fileName = name.slice(0, -3) // Get the user's file's name
         // Remove any importing of the user's file because it's functions were initialized
-        newCode = Object.values(setup.useFiles)[0]
+        let newCode = Object.values(setup.useFiles)[0]
           .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
           .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
             p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
@@ -134,7 +134,7 @@ async function python (setup, params) {
           if (code.indexOf('input') !== -1) {
           // Replace a user input with a computer input FIXME: only works when there is 1 input
             const str = 'next(inputs)'
-            newCode = `inputs = iter([${inputs}])\n${code.replace(/input\((.*?)\)/, str)}` // Switch user input to computer input
+            let newCode = `inputs = iter([${inputs}])\n${code.replace(/input\((.*?)\)/g, str)}` // Switch user input to computer input
             const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
             const prompt = (str, start, end) => str.substring(str.indexOf(start) + start.length, str.indexOf(end, str.indexOf(start) + start.length))
             newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${prompt(code, 'input(', ')').slice(1, -1)}{${code.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]}}")` + newCode.slice(index) // Print the input question and inputed value
