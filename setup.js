@@ -8,4 +8,10 @@ window.addEventListener('load', () => {
     INPUT.style.height = `${INPUT.scrollHeight + fontSize}px`
   })
 
-  document.getElementById(
+  document.getElementById('submit').addEventListener('click', () => { console.log(format(INPUT.value)) })
+})
+
+function format (str) {
+  // const specials = ['HIDE', 'EDIT', 'SUB', 'CALL']
+  return str
+}
