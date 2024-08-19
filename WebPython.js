@@ -140,7 +140,6 @@ async function python (setup, params) {
               const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
               newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` + newCode.slice(index) // Print the input question and inputed value
               newCode = newCode.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
-              console.log(newCode)
             })
 
             pyodide.runPython(newCode) // Run each testcase
