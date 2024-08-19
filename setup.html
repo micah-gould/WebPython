@@ -1,47 +1,42 @@
 <html>
 
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>Upload Content</title>
+    <script tpye="text/javascript" src="setup.js"></script>
+    <link type="text/css" rel="stylesheet" href="WebPython.css" />
 </head>
 
 <body style="font-family: sans-serif;">
-    <form method="post" action="../uploadFiles">
-        <div>
-            <p>File name: <input name="filename1" size="25" type="text" /></p>
-            <p><textarea name="contents1" rows="24" cols="80"></textarea></p>
-            <div id="addfilecontainer">Need more files? <button id="addfile" type="button">Add file</button></div>
-            <div><input type="submit" value="Submit files" /></div>
-        </div>
-    </form>
+    <div>
+        <p>File name: <input class="filename" name="filename1" size="25" type="text" /></p>
+        <p><textarea class="contents" name="contents1" rows="24" cols="80"></textarea></p>
+        <div id="addfilecontainer">Need more files? <button id="addfile" type="button">Add file</button></div>
+        <button id="submit">Submit files</button>
+    </div>
     <script type="text/javascript">
         let fileIndex = 1
 
         document.getElementById('addfile').addEventListener('click',
             function () {
+                updateInputs()
                 fileIndex++
                 let fileDiv = document.createElement('div')
                 fileDiv.setAttribute('id', 'item' + fileIndex)
-                fileDiv.innerHTML = '<p>File name: <input id="filename' + fileIndex + '" name="filename' + fileIndex
+                fileDiv.innerHTML = '<p>File name: <input class="filename" id="filename' + fileIndex + '" name="filename' + fileIndex
                     + '" size="25" type="text"/> <button id="delete' + fileIndex
-                    + '" type="button">Delete</button></p><p><textarea id="contents' + fileIndex + '" name="contents' + fileIndex
+                    + '" type="button">Delete</button></p><p><textarea class="contents" id="contents' + fileIndex + '" name="contents' + fileIndex
                     + '" rows="24" cols="80"/></textarea></p>'
                 let addFile = document.getElementById('addfilecontainer')
                 addFile.parentNode.insertBefore(fileDiv, addFile)
 
                 document.getElementById('delete' + fileIndex).addEventListener('click',
                     function () {
-                        document.getElementById('filename' + fileIndex).setAttribute('value', '')
-                        document.getElementById('contents' + fileIndex).innerHTML = ''
-                        document.getElementById('item' + fileIndex).style.display = 'none'
+                        index = this.id.slice(6)
+                        document.getElementById('filename' + index).setAttribute('value', '')
+                        document.getElementById('contents' + index).innerHTML = ''
+                        document.getElementById('item' + index).style.display = 'none'
                     })
             })
-
-        document.getElementById('upload').disabled = document.getElementById('file').files.length === 0
-
-        document.getElementById('file').addEventListener('change', function () {
-            document.getElementById('upload').disabled = document.getElementById('file').files.length === 0
-        })
     </script>
 </body>
 
