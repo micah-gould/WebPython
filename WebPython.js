@@ -249,7 +249,7 @@ async function python (setup, params) {
         }
       }
     }
-    switch (setup.sections[i].type) { // TODO: Review all the current methods and make sure they work
+    switch (setup.sections[i].type) { // TODO: work on test case 5
       case 'call':
         call()
         break
