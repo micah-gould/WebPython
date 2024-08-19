@@ -132,12 +132,16 @@ async function python (setup, params) {
 
         try {
           if (code.indexOf('input') !== -1) {
-          // Replace a user input with a computer input FIXME: only works when there is 1 input
-            const str = 'next(inputs)'
-            let newCode = `inputs = iter([${inputs}])\n${code.replace(/input\((.*?)\)/g, str)}` // Switch user input to computer input
-            const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
-            const prompt = (str, start, end) => str.substring(str.indexOf(start) + start.length, str.indexOf(end, str.indexOf(start) + start.length))
-            newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${prompt(code, 'input(', ')').slice(1, -1)}{${code.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]}}")` + newCode.slice(index) // Print the input question and inputed value
+          // Replace a user input with a computer input
+            const newStr = 'next(inputs)'
+            let newCode = `inputs = iter([${inputs}])\n${code}`
+            code.match(/input\((.*?)\)/g).forEach(str => {
+              const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
+              const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
+              newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` + newCode.slice(index) // Print the input question and inputed value
+              newCode = newCode.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
+              console.log(newCode)
+            })
 
             pyodide.runPython(newCode) // Run each testcase
           } else {
