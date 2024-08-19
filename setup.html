@@ -1,18 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
-    <script src="setup.js"></script>
-    <link type="text/css" rel="stylesheet" href="WebPython.css" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Upload Content</title>
 </head>
 
-<body>
-    <h4>Insert Annotated code here</h4>
-    <textarea id="input" class="text"></textarea>
-    <button id="submit">submit</button>
+<body style="font-family: sans-serif;">
+    <form method="post" action="../uploadFiles">
+        <div>
+            <p>File name: <input name="filename1" size="25" type="text" /></p>
+            <p><textarea name="contents1" rows="24" cols="80"></textarea></p>
+            <div id="addfilecontainer">Need more files? <button id="addfile" type="button">Add file</button></div>
+            <div><input type="submit" value="Submit files" /></div>
+        </div>
+    </form>
+    <script type="text/javascript">
+        let fileIndex = 1
+
+        document.getElementById('addfile').addEventListener('click',
+            function () {
+                fileIndex++
+                let fileDiv = document.createElement('div')
+                fileDiv.setAttribute('id', 'item' + fileIndex)
+                fileDiv.innerHTML = '<p>File name: <input id="filename' + fileIndex + '" name="filename' + fileIndex
+                    + '" size="25" type="text"/> <button id="delete' + fileIndex
+                    + '" type="button">Delete</button></p><p><textarea id="contents' + fileIndex + '" name="contents' + fileIndex
+                    + '" rows="24" cols="80"/></textarea></p>'
+                let addFile = document.getElementById('addfilecontainer')
+                addFile.parentNode.insertBefore(fileDiv, addFile)
+
+                document.getElementById('delete' + fileIndex).addEventListener('click',
+                    function () {
+                        document.getElementById('filename' + fileIndex).setAttribute('value', '')
+                        document.getElementById('contents' + fileIndex).innerHTML = ''
+                        document.getElementById('item' + fileIndex).style.display = 'none'
+                    })
+            })
+
+        document.getElementById('upload').disabled = document.getElementById('file').files.length === 0
+
+        document.getElementById('file').addEventListener('change', function () {
+            document.getElementById('upload').disabled = document.getElementById('file').files.length === 0
+        })
+    </script>
 </body>
 
 </html>

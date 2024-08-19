@@ -8,9 +8,4 @@ window.addEventListener('load', () => {
     INPUT.style.height = `${INPUT.scrollHeight + fontSize}px`
   })
 
-  document.getElementById('submit').addEventListener('click', () => { console.log(format(INPUT.value)) })
-})
-
-function format (str) {
-  return str
-}
+  document.getElementById(
