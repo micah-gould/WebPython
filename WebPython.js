@@ -216,7 +216,7 @@ async function python (setup, params) {
       }
       report += '</table>'
     }
-    function unitTest () {
+    function unitTest () { // FIXME: Breaks if use was wrong
       report += '<p class="header unitTest">Unit Tests</p>\n<div class="run">'
       // Iterrate over runs array
       for (let j = 0; j < setup.sections[i].runs.length; j++) {
