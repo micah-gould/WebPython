@@ -13,7 +13,7 @@ window.addEventListener('load', () => {
     })
   })
 
-  document.getElementById('submit').addEventListener('click', submit())
+  document.getElementById('submit').addEventListener('click', submit)
 })
 
 function submit () {
@@ -26,7 +26,7 @@ function submit () {
   }
   for (let i = 0; i < filenames.length; i++) {
     const filename = filenames[i].value
-    const code = contents[i]
+    const code = contents[i].value
     const type = getType(filename, code)
     const section = newSection(filename, code, type)
     let inputs = ''
@@ -88,6 +88,8 @@ function newSection (filename, code, type) {
 }
 
 function format (str) {
-  // const specials = ['HIDE', 'EDIT']
-  return [str]
+  const specials = ['##CALL', '##IN']
+  const lines = str.split('\n')
+  const newLines = lines.filter(line => !specials.some(v => line.includes(v)))
+  return [newLines.join('\n')]
 }
