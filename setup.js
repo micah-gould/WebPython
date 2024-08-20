@@ -33,12 +33,13 @@ function submit () {
 
     switch (type) {
       case 'input':
-        inputs = code
+        inputs += code
         break
       case 'html':
         setup.description = code
         break
       case 'run':
+        inputs += getInputs(code)
         section.runs.push({ inputs })
         setup.sections.push(section)
         break
@@ -76,7 +77,7 @@ function getType (filename, code) {
   if (code.includes('##CALL')) return 'call'
   if (code.includes('##SUB')) return 'sub'
 
-  return 'test'
+  return 'run'
 }
 
 function newSection (filename, code, type) {
@@ -87,9 +88,9 @@ function newSection (filename, code, type) {
   }
 }
 
-function format (str) {
+function format (code) {
   const specials = ['##CALL', '##IN']
-  const lines = str.split('\n')
+  const lines = code.split('\n')
   let hidden = false
   const newLines = lines.filter(line => !specials.some(v => line.includes(v))).map(line => {
     if (line.includes('##HIDE')) hidden = true
@@ -104,18 +105,38 @@ function format (str) {
     const subIndex = line.indexOf('##EDIT')
     return subIndex !== -1 ? line.slice(0, subIndex) + line.slice(subIndex + '##EDIT'.length) : line
   })
-  console.log(newLines, editLines)
 
-  const output = newLines.join('\n').split('ESCAPE').map(line => line === '\n' ? '' : line).reduce((acc, item, index) => {
-    if (item === '') {
-      if ((acc[acc.length - 1] === '') || index === 0) {
-        acc.push(null)
+  const output = newLines
+    .join('\n')
+    .split('ESCAPE')
+    .map(line => line === '\n' ? '' : line)
+    .reduce((acc, item, index) => {
+      if (item === '') {
+        if ((acc[acc.length - 1] === '') || index === 0) {
+          acc.push(null)
+        }
+        acc.push('')
+      } else {
+        acc.push(item)
       }
-      acc.push('')
-    } else {
-      acc.push(item)
-    }
-    return acc
-  }, []).map(line => line === '' ? editLines.shift() : line)
+      return acc
+    }, [])
+    .map(line => line === '' ? editLines.shift().trim() : line?.trim() || null)
   return output
+}
+
+function getInputs (code) {
+  const IN = '##IN'
+  const inputs = code
+    .split('\n')
+    .reduce((acc, line) => {
+      if (line.includes(IN)) {
+        acc.push(line.slice(IN.length))
+      }
+      return acc
+    }, [])
+    .join('\n')
+    .replace(/\\n/g, '\n')
+    .trim()
+  return inputs
 }
