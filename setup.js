@@ -6,12 +6,13 @@ let contents, filenames, pyodide
 let stdoutOLD = [] // Array to store all past outputs (by line)
 
 window.addEventListener('load', async () => {
+  console.log('Loading pyodide')
   // Load Pyodide
   pyodide = await loadPyodide({
     indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/', // Make sure this is the correct version of pyodide
-    stdout: (msg) => { console.log(`Pyodide: ${msg}`) },
     stderr: (msg) => { console.log(msg) } // Unit Test raise the output as warning, so this redirects them to the output
   })
+  console.log('Pyodide loaded')
   // Capture the Pyodide output
   try {
     pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()')
