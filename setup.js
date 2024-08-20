@@ -8,10 +8,7 @@ let stdoutOLD = [] // Array to store all past outputs (by line)
 window.addEventListener('load', async () => {
   console.log('Loading pyodide')
   // Load Pyodide
-  pyodide = await loadPyodide({
-    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/', // Make sure this is the correct version of pyodide
-    stderr: (msg) => { console.log(msg) } // Unit Test raise the output as warning, so this redirects them to the output
-  })
+  pyodide = await loadPyodide()
   console.log('Pyodide loaded')
   // Capture the Pyodide output
   try {
