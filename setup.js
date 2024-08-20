@@ -1,7 +1,23 @@
-let contents
-let filenames
+/* eslint no-undef: off
+    -------------
+    no-undef is off because loadPyodide doesn't need to be declared locally */
 
-window.addEventListener('load', () => {
+let contents, filenames, pyodide
+let stdoutOLD = [] // Array to store all past outputs (by line)
+
+window.addEventListener('load', async () => {
+  // Load Pyodide
+  pyodide = await loadPyodide({
+    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/', // Make sure this is the correct version of pyodide
+    stdout: (msg) => { console.log(`Pyodide: ${msg}`) },
+    stderr: (msg) => { console.log(msg) } // Unit Test raise the output as warning, so this redirects them to the output
+  })
+  // Capture the Pyodide output
+  try {
+    pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()')
+  } catch (err) {
+    console.log(err)
+  }
   contents = Array.from(document.getElementsByClassName('contents'))
   filenames = Array.from(document.getElementsByClassName('filename'))
   // Automatically update text area size
@@ -150,4 +166,9 @@ function getOutput (code, inputs) {
     newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` + newCode.slice(index) // Print the input question and inputed value
     newCode = newCode.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
   })
+  pyodide.runPython(newCode)
+  const output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+  stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+
+  return output
 }
