@@ -58,6 +58,37 @@ function submit () {
         setup.sections.push(section)
         break
       case 'call':
+        /* {
+          sections: [
+            {
+              type: 'call',
+              runs: [
+                {
+                  caption: 'average',
+                  args: [{ name: 'Arguments', value: '3, 4' }],
+                  output: '3.5'
+                },
+                {
+                  caption: 'average',
+                  args: [{ name: 'Arguments', value: '-3, 3' }],
+                  output: '0.0'
+                },
+                {
+                  caption: 'average',
+                  args: [{ name: 'Arguments', value: '3, 0' }],
+                  output: '1.5'
+                }
+              ]
+            }
+          ],
+          requiredFiles: {
+            'numbers.py': {
+              editors: [null, 'def average(x, y) :\n', '    return 0.5*(x+y)\n']
+            }
+          },
+          description:
+        '<p>Write a function <code>average</code> that returns the average of two numbers.</p>\n'
+        } */
         section.runs.push({})
         setup.sections.push(section)
         break
