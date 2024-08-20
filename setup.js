@@ -1,78 +1,93 @@
-/* eslint no-unused-vars: off
-    -------------
-    no-unused-vars is off because the function updateInputs is written in this file but called from another
- */
-
-let inputs
+let contents
 let filenames
 
 window.addEventListener('load', () => {
-  inputs = Array.from(document.getElementsByClassName('contents'))
+  contents = Array.from(document.getElementsByClassName('contents'))
   filenames = Array.from(document.getElementsByClassName('filename'))
   // Automatically update text area size
   document.addEventListener('keydown', () => {
-    inputs.forEach(INPUT => {
+    contents.forEach(INPUT => {
       INPUT.style.height = 'auto'
       const fontSize = parseFloat(window.getComputedStyle(INPUT).fontSize)
       INPUT.style.height = `${INPUT.scrollHeight + fontSize}px`
     })
   })
 
-  document.getElementById('submit').addEventListener('click', () => {
-    updateInputs()
-    console.log(inputs.length, filenames.length)
-    const specialFilenames = []
-    const specialInputs = []
-    for (let i = 0; i < filenames.length; i++) {
-      if (isSpecialFile(filenames[i].value)) {
-        specialFilenames.push(filenames.splice(i, 1))
-        specialInputs.push(inputs.splice(i, 1))
-        i--
-      }
-    }
-    const setup = {
-      sections: [],
-      useFiles: {
-        '': ''
-      },
-      description: ''
-    }
-    for (let i = 0; i < filenames.length; i++) {
-      const filename = filenames[i].value
-      const type = getType(filename)
-      setup.sections.push({
-        requiredFiles: {
-          [filename]: { editors: [''] }
-        },
-        type,
-        runs: [
-          {
-            input: '',
-            output: ''
-          }
-        ]
-      })
-    }
-    console.log(setup)
-  })
+  document.getElementById('submit').addEventListener('click', submit())
 })
 
-function isSpecialFile (file) {
-  const specialSuffixes = ['in', 'html']
-  if (specialSuffixes.includes(file.split('.')[1])) return true
-  return false
-}
+function submit () {
+  updateInputs()
 
-function getType (file) {
-  return 'test'
-}
+  const setup = {
+    sections: [],
+    useFiles: {},
+    description: ''
+  }
+  for (let i = 0; i < filenames.length; i++) {
+    const filename = filenames[i].value
+    const code = contents[i]
+    const type = getType(filename, code)
+    const section = newSection(filename, code, type)
+    let inputs = ''
 
-function format (str) {
-  // const specials = ['HIDE', 'EDIT', 'SUB', 'CALL']
-  return str
+    switch (type) {
+      case 'input':
+        inputs = code
+        break
+      case 'html':
+        setup.description = code
+        break
+      case 'run':
+        section.runs.push({ inputs })
+        setup.sections.push(section)
+        break
+      case 'call':
+        section.runs.push({})
+        setup.sections.push(section)
+        break
+      case 'sub':
+        section.runs.push({})
+        setup.sections.push(section)
+        break
+      case 'tester':
+        section.runs.push({})
+        setup.sections.push(section)
+        break
+      case 'unitTest':
+        section.runs.push({})
+        setup.sections.push(section)
+        break
+      default:
+        setup.useFiles[filename] = code
+    }
+  }
+  console.log(setup)
 }
 
 function updateInputs () {
-  inputs = Array.from(document.getElementsByClassName('contents'))
+  contents = Array.from(document.getElementsByClassName('contents'))
   filenames = Array.from(document.getElementsByClassName('filename'))
+}
+
+function getType (filename, code) {
+  if (filename.split('.')[1] === 'in') return 'input'
+  if (filename.split('.')[1] === 'html') return 'html'
+  if (code.includes('##CALL')) return 'call'
+  if (code.includes('##SUB')) return 'sub'
+
+  return 'test'
+}
+
+function newSection (filename, code, type) {
+  return {
+    requiredFiles: { [filename]: { editors: format(code) } },
+    type,
+    runs: []
+  }
+}
+
+function format (str) {
+  // const specials = ['HIDE', 'EDIT']
+  return [str]
 }
