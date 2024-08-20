@@ -106,8 +106,7 @@ function format (str) {
   })
   console.log(newLines, editLines)
 
-  let output = newLines.join('\n').split('ESCAPE').map(line => line === '\n' ? '' : line)
-  output = output.reduce((acc, item, index) => {
+  const output = newLines.join('\n').split('ESCAPE').map(line => line === '\n' ? '' : line).reduce((acc, item, index) => {
     if (item === '') {
       if ((acc[acc.length - 1] === '') || index === 0) {
         acc.push(null)
@@ -116,7 +115,6 @@ function format (str) {
     } else {
       acc.push(item)
     }
-
     return acc
   }, []).map(line => line === '' ? editLines.shift() : line)
   return output
