@@ -90,6 +90,34 @@ function newSection (filename, code, type) {
 function format (str) {
   const specials = ['##CALL', '##IN']
   const lines = str.split('\n')
-  const newLines = lines.filter(line => !specials.some(v => line.includes(v)))
-  return [newLines.join('\n')]
+  let hidden = false
+  const newLines = lines.filter(line => !specials.some(v => line.includes(v))).map(line => {
+    if (line.includes('##HIDE')) hidden = true
+    if (line.includes('##EDIT')) hidden = false
+    if (hidden === true) return ''
+    const subIndex = line.indexOf('##SUB')
+    return subIndex !== -1 ? line.slice(0, subIndex) : line
+  }).filter(line => line !== '')
+
+  const editLines = newLines.filter(line => line.includes('##EDIT')).map(line => {
+    newLines[newLines.indexOf(line)] = 'ESCAPE'
+    const subIndex = line.indexOf('##EDIT')
+    return subIndex !== -1 ? line.slice(0, subIndex) + line.slice(subIndex + '##EDIT'.length) : line
+  })
+  console.log(newLines, editLines)
+
+  let output = newLines.join('\n').split('ESCAPE').map(line => line === '\n' ? '' : line)
+  output = output.reduce((acc, item, index) => {
+    if (item === '') {
+      if ((acc[acc.length - 1] === '') || index === 0) {
+        acc.push(null)
+      }
+      acc.push('')
+    } else {
+      acc.push(item)
+    }
+
+    return acc
+  }, []).map(line => line === '' ? editLines.shift() : line)
+  return output
 }
