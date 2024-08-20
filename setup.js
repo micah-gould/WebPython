@@ -40,7 +40,7 @@ function submit () {
         break
       case 'run':
         inputs += getInputs(code)
-        section.runs.push({ inputs })
+        section.runs.push({ input: inputs, output: getOutput(code, inputs) })
         setup.sections.push(section)
         break
       case 'call':
@@ -139,4 +139,15 @@ function getInputs (code) {
     .replace(/\\n/g, '\n')
     .trim()
   return inputs
+}
+
+function getOutput (code, inputs) {
+  const newStr = 'next(inputs)'
+  let newCode = `inputs = iter([${inputs.split('\n')}])\n${code}`
+  code.match(/input\((.*?)\)/g).forEach(str => {
+    const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
+    const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
+    newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` + newCode.slice(index) // Print the input question and inputed value
+    newCode = newCode.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
+  })
 }
