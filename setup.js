@@ -135,17 +135,11 @@ function format (code) {
     .split('ESCAPE')
     .reduce((acc, item, index) => {
       if (item === '' || item === '\n') {
-        return [...acc, null, editLines[index] || null]
+        return editLines[index] !== undefined ? [...acc, null, editLines[index]] : [...acc]
       } else {
-        return [...acc, item, editLines[index] || null]
+        return editLines[index] !== undefined ? [...acc, item.trim(), editLines[index]] : [...acc, item.trim()]
       }
     }, [])
-    .concat(editLines.slice(newLines.length))
-    .reduceRight((acc, item) => {
-      if (item !== null || acc.length > 0) acc.unshift(item)
-      return acc
-    }, [])
-    .map(line => line?.trim() || null)
   return output
 }
 
