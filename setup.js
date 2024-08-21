@@ -111,19 +111,24 @@ function format (code) {
   const specials = [CALL, IN]
   const lines = code.split('\n')
   let hidden = false
-  const newLines = lines.filter(line => !specials.some(v => line.includes(v))).map(line => {
-    if (line.includes(HIDE)) hidden = true
-    if (line.includes(EDIT)) hidden = false
-    if (hidden === true) return ''
-    const subIndex = line.indexOf(SUB)
-    return subIndex !== -1 ? line.slice(0, subIndex) : line
-  }).filter(line => line !== '')
+  const newLines = lines
+    .filter(line => !specials.some(v => line.includes(v)))
+    .map(line => {
+      if (line.includes(HIDE)) hidden = true
+      if (line.includes(EDIT)) hidden = false
+      if (hidden === true) return ''
+      const subIndex = line.indexOf(SUB)
+      return subIndex !== -1 ? line.slice(0, subIndex) : line
+    })
+    .filter(line => line !== '')
 
-  const editLines = newLines.filter(line => line.includes(EDIT)).map(line => {
-    newLines[newLines.indexOf(line)] = 'ESCAPE'
-    const subIndex = line.indexOf(EDIT)
-    return subIndex !== -1 ? line.slice(0, subIndex) + line.slice(subIndex + EDIT.length) : line
-  })
+  const editLines = newLines
+    .filter(line => line.includes(EDIT))
+    .map(line => {
+      newLines[newLines.indexOf(line)] = 'ESCAPE'
+      const subIndex = line.indexOf(EDIT)
+      return subIndex !== -1 ? line.slice(0, subIndex) + line.slice(subIndex + EDIT.length) : line
+    })
 
   const output = newLines
     .join('\n')
@@ -145,7 +150,8 @@ function format (code) {
 }
 
 function getInputs (code) {
-  const inputs = code?.match(new RegExp(IN + '(.*)', 'g'))
+  const inputs = code
+    ?.match(new RegExp(IN + '(.*)', 'g'))
     ?.map(str => str.slice(IN.length)
       ?.replace(/\\n/g, '\n')
       ?.trim())
@@ -175,7 +181,8 @@ function getOutput (code, inputs, func) {
 }
 
 function getCalls (code) {
-  const calls = code.match(new RegExp(CALL + '(.*)', 'g'))
+  const calls = code
+    .match(new RegExp(CALL + '(.*)', 'g'))
     .map(call => call.slice(CALL.length)
       .trim())
     .map(call => {
@@ -191,8 +198,7 @@ function getCalls (code) {
 
 function getSubs (code) {
   const runs = []
-  const calls = [...code.matchAll(new RegExp(`(\\w+)\\s*=\\s*\\w+\\s*${SUB}\\s*(.*)`, 'g'))]
-    .map(call => [call[1], call[2].split(', ')])
+  const calls = [...code.matchAll(new RegExp(`(\\w+)\\s*=\\s*\\w+\\s*${SUB}\\s*(.*)`, 'g'))].map(call => [call[1], call[2].split(', ')])
 
   calls.forEach(call => {
     for (let i = 0; i < call[1].length; i++) {
