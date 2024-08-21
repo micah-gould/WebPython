@@ -58,38 +58,7 @@ function submit () {
         setup.sections.push(section)
         break
       case 'call':
-        /* {
-          sections: [
-            {
-              type: 'call',
-              runs: [
-                {
-                  caption: 'average',
-                  args: [{ name: 'Arguments', value: '3, 4' }],
-                  output: '3.5'
-                },
-                {
-                  caption: 'average',
-                  args: [{ name: 'Arguments', value: '-3, 3' }],
-                  output: '0.0'
-                },
-                {
-                  caption: 'average',
-                  args: [{ name: 'Arguments', value: '3, 0' }],
-                  output: '1.5'
-                }
-              ]
-            }
-          ],
-          requiredFiles: {
-            'numbers.py': {
-              editors: [null, 'def average(x, y) :\n', '    return 0.5*(x+y)\n']
-            }
-          },
-          description:
-        '<p>Write a function <code>average</code> that returns the average of two numbers.</p>\n'
-        } */
-        section.runs.push({})
+        section.runs = getCalls(code)
         setup.sections.push(section)
         break
       case 'sub':
@@ -172,32 +141,47 @@ function format (code) {
 
 function getInputs (code) {
   const IN = '##IN'
-  const inputs = code
-    .split('\n')
-    .reduce((acc, line) => {
-      if (line.includes(IN)) {
-        acc.push(line.slice(IN.length))
-      }
-      return acc
-    }, [])
-    .join('\n')
-    .replace(/\\n/g, '\n')
-    .trim()
+  const inputs = code.match(new RegExp(IN + '(.*?)\n', 'g'))
+    .map(str => str.slice(IN.length, -1)
+      .replace(/\\n/g, '\n')
+      .trim())
   return inputs
 }
 
-function getOutput (code, inputs) {
+function getOutput (code, inputs, func) {
   const newStr = 'next(inputs)'
   let newCode = `inputs = iter([${inputs.split('\n')}])\n${code}`
-  code.match(/input\((.*?)\)/g).forEach(str => {
+  code.match(/input\((.*?)\)/g)?.forEach(str => {
     const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
     const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
     newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` + newCode.slice(index) // Print the input question and inputed value
     newCode = newCode.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
   })
   pyodide.runPython(newCode)
-  const output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+  if (func) {
+    pyodide.runPython(`print(${func}(${inputs}))`)
+  }
+  const output = pyodide.runPython('sys.stdout.getvalue()')
+    .split('\n')
+    .slice(stdoutOLD.length, -1)
+    .join('\n') // Get the new outputs
   stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
 
   return output
+}
+
+function getCalls (code) {
+  const CALL = '##CALL'
+  const calls = code.match(new RegExp(CALL + '(.*?)\n', 'g'))
+    .map(call => call.slice(CALL.length, -1)
+      .trim())
+    .map(call => {
+      const func = code.match(/def\s+(\w+)\s*\((.*?)\)/)[1]
+      return {
+        caption: func,
+        args: [{ name: 'Arguments', value: call }],
+        output: getOutput(code, call, func)
+      }
+    })
+  return calls
 }
