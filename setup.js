@@ -4,6 +4,11 @@
 
 let contents, filenames, pyodide
 let stdoutOLD = [] // Array to store all past outputs (by line)
+const SUB = '##SUB'
+const CALL = '##CALL'
+const IN = '##IN'
+const HIDE = '##HIDE'
+const EDIT = '##EDIT'
 
 window.addEventListener('load', async () => {
   console.log('Loading pyodide')
@@ -88,8 +93,8 @@ function updateInputs () {
 function getType (filename, code) {
   if (filename.split('.')[1] === 'in') return 'input'
   if (filename.split('.')[1] === 'html') return 'html'
-  if (code.includes('##CALL')) return 'call'
-  if (code.includes('##SUB')) return 'sub'
+  if (code.includes(CALL)) return 'call'
+  if (code.includes(SUB)) return 'sub'
 
   return 'run'
 }
@@ -103,49 +108,48 @@ function newSection (filename, code, type) {
 }
 
 function format (code) {
-  const specials = ['##CALL', '##IN']
+  const specials = [CALL, IN]
   const lines = code.split('\n')
   let hidden = false
   const newLines = lines.filter(line => !specials.some(v => line.includes(v))).map(line => {
-    if (line.includes('##HIDE')) hidden = true
-    if (line.includes('##EDIT')) hidden = false
+    if (line.includes(HIDE)) hidden = true
+    if (line.includes(EDIT)) hidden = false
     if (hidden === true) return ''
-    const subIndex = line.indexOf('##SUB')
+    const subIndex = line.indexOf(SUB)
     return subIndex !== -1 ? line.slice(0, subIndex) : line
   }).filter(line => line !== '')
 
-  const editLines = newLines.filter(line => line.includes('##EDIT')).map(line => {
+  const editLines = newLines.filter(line => line.includes(EDIT)).map(line => {
     newLines[newLines.indexOf(line)] = 'ESCAPE'
-    const subIndex = line.indexOf('##EDIT')
-    return subIndex !== -1 ? line.slice(0, subIndex) + line.slice(subIndex + '##EDIT'.length) : line
+    const subIndex = line.indexOf(EDIT)
+    return subIndex !== -1 ? line.slice(0, subIndex) + line.slice(subIndex + EDIT.length) : line
   })
 
   const output = newLines
     .join('\n')
     .split('ESCAPE')
-    .map(line => line === '\n' ? '' : line)
     .reduce((acc, item, index) => {
-      if (item === '') {
-        if ((acc[acc.length - 1] === '') || index === 0) {
-          acc.push(null)
-        }
-        acc.push('')
+      if (item === '' || item === '\n') {
+        return [...acc, null, editLines[index] || null]
       } else {
-        acc.push(item)
+        return [...acc, item, editLines[index] || null]
       }
+    }, [])
+    .concat(editLines.slice(newLines.length))
+    .reduceRight((acc, item) => {
+      if (item !== null || acc.length > 0) acc.unshift(item)
       return acc
     }, [])
-    .map(line => line === '' ? editLines.shift().trim() : line?.trim() || null)
+    .map(line => line?.trim() || null)
   return output
 }
 
 function getInputs (code) {
-  const IN = '##IN'
-  const inputs = code.match(new RegExp(IN + '(.*)', 'g'))
-    .map(str => str.slice(IN.length)
-      .replace(/\\n/g, '\n')
-      .trim())
-  return inputs
+  const inputs = code?.match(new RegExp(IN + '(.*)', 'g'))
+    ?.map(str => str.slice(IN.length)
+      ?.replace(/\\n/g, '\n')
+      ?.trim())
+  return inputs || ''
 }
 
 function getOutput (code, inputs, func) {
@@ -171,7 +175,6 @@ function getOutput (code, inputs, func) {
 }
 
 function getCalls (code) {
-  const CALL = '##CALL'
   const calls = code.match(new RegExp(CALL + '(.*)', 'g'))
     .map(call => call.slice(CALL.length)
       .trim())
@@ -187,7 +190,6 @@ function getCalls (code) {
 }
 
 function getSubs (code) {
-  const SUB = '##SUB'
   const runs = []
   const calls = [...code.matchAll(new RegExp(`(\\w+)\\s*=\\s*\\w+\\s*${SUB}\\s*(.*)`, 'g'))]
     .map(call => [call[1], call[2].split(', ')])
