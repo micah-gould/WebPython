@@ -62,7 +62,7 @@ function submit () {
         setup.sections.push(section)
         break
       case 'sub':
-        section.runs.push({})
+        section.runs = getSubs(code)
         setup.sections.push(section)
         break
       case 'tester':
@@ -150,7 +150,7 @@ function getInputs (code) {
 
 function getOutput (code, inputs, func) {
   const newStr = 'next(inputs)'
-  let newCode = `inputs = iter([${inputs.split('\n')}])\n${code}`
+  let newCode = `inputs = iter([${inputs?.split('\n') || 0}])\n${code}`
   code.match(/input\((.*?)\)/g)?.forEach(str => {
     const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
     const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
@@ -184,4 +184,28 @@ function getCalls (code) {
       }
     })
   return calls
+}
+
+function getSubs (code) {
+  const SUB = '##SUB'
+  const runs = []
+  const calls = [...code.matchAll(new RegExp(`(\\w+)\\s*=\\s*\\w+\\s*${SUB}\\s*(.*)`, 'g'))]
+    .map(call => [call[1], call[2].split(', ')])
+
+  calls.forEach(call => {
+    for (let i = 0; i < call[1].length; i++) {
+      if (runs.length < i + 1) runs.push({ args: [], output: '' })
+      runs[i].args.push({ name: call[0], value: call[1][i] })
+    }
+  })
+
+  const results = runs.map(run => {
+    let newCode = code
+    run.args.forEach(arg => {
+      newCode = newCode.replace(new RegExp(`${arg.name}\\s*=\\s*\\w+`, 'g'), `${arg.name} = ${arg.value}`)
+    })
+    return { args: run.args, output: getOutput(newCode) }
+  })
+
+  return results
 }
