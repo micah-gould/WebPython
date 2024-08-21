@@ -141,8 +141,8 @@ function format (code) {
 
 function getInputs (code) {
   const IN = '##IN'
-  const inputs = code.match(new RegExp(IN + '(.*?)\n', 'g'))
-    .map(str => str.slice(IN.length, -1)
+  const inputs = code.match(new RegExp(IN + '(.*)', 'g'))
+    .map(str => str.slice(IN.length)
       .replace(/\\n/g, '\n')
       .trim())
   return inputs
@@ -172,8 +172,8 @@ function getOutput (code, inputs, func) {
 
 function getCalls (code) {
   const CALL = '##CALL'
-  const calls = code.match(new RegExp(CALL + '(.*?)\n', 'g'))
-    .map(call => call.slice(CALL.length, -1)
+  const calls = code.match(new RegExp(CALL + '(.*)', 'g'))
+    .map(call => call.slice(CALL.length)
       .trim())
     .map(call => {
       const func = code.match(/def\s+(\w+)\s*\((.*?)\)/)[1]
