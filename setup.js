@@ -134,11 +134,10 @@ function format (code) {
     .join('\n')
     .split('ESCAPE')
     .reduce((acc, item, index) => {
-      if (item === '' || item === '\n') {
-        return editLines[index] !== undefined ? [...acc, null, editLines[index]] : [...acc]
-      } else {
-        return editLines[index] !== undefined ? [...acc, item.trim(), editLines[index]] : [...acc, item.trim()]
-      }
+      if (item !== '' && index === 0) return editLines[index] !== undefined ? [null, item.trim(), editLines[index]] : [null, item.trim()]
+      if (item === '\n') return editLines[index] !== undefined ? [...acc, null, editLines[index]] : [...acc]
+      if (item === '') return editLines[index] !== undefined ? [...acc, editLines[index]] : [...acc]
+      return editLines[index] !== undefined ? [...acc, item.trim(), editLines[index]] : [...acc, item.trim()]
     }, [])
   return output
 }
