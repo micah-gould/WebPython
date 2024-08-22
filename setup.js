@@ -71,7 +71,7 @@ function submit () {
         setup.sections.push(section)
         break
       case 'tester':
-        section.runs.push({})
+        section.runs.push({ caption: filenames[i + 1].value, output: getOutput(`${code}\n${contents[i + 1].value}`, inputs) })
         setup.sections.push(section)
         break
       case 'unitTest':
@@ -91,12 +91,17 @@ function updateInputs () {
 }
 
 function getType (filename, code) {
+  const files = filenames.map(file => file.value)
+  if ((/test/i).test(files[files.indexOf(filename) + 1])) {
+    if (contents[files.indexOf(filename) + 1].value.includes('unittest')) return 'unitTest'
+    return 'tester'
+  }
   if (filename.split('.')[1] === 'in') return 'input'
   if (filename.split('.')[1] === 'html') return 'html'
   if (code.includes(CALL)) return 'call'
   if (code.includes(SUB)) return 'sub'
 
-  return 'run'
+  if (code.includes(EDIT)) return 'run'
 }
 
 function newSection (filename, code, type) {
