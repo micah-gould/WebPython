@@ -79,7 +79,7 @@ function submit () {
         setup.useFiles[filename] = code
     }
   }
-  console.log(setup)
+  console.log(JSON.stringify(setup))
 }
 
 function updateInputs () {
