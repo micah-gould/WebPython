@@ -70,12 +70,9 @@ function submit () {
         section.runs = getSubs(code)
         setup.sections.push(section)
         break
+      case 'unitTest':
       case 'tester':
         section.runs.push({ caption: filenames[i + 1].value, output: getOutput(`${code}\n${contents[i + 1].value}`, inputs) })
-        setup.sections.push(section)
-        break
-      case 'unitTest':
-        section.runs.push({})
         setup.sections.push(section)
         break
       default:
@@ -165,6 +162,17 @@ function getOutput (code, inputs, func) {
     newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` + newCode.slice(index) // Print the input question and inputed value
     newCode = newCode.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
   })
+
+  // Remove any importing of the user's file because it's functions were initialized
+  filenames.map(name => name.value.split('.')[0]).filter(name => !(/test/i).test(name)).forEach(fileName => {
+    newCode = newCode
+      .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
+      .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
+        p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
+      )
+      .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
+  })
+  newCode += code.includes('unittest') ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : ''
   pyodide.runPython(newCode)
   if (func) {
     pyodide.runPython(`print(${func}(${inputs}))`)
