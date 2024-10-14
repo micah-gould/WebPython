@@ -11,6 +11,9 @@ const HIDE = '##HIDE'
 const EDIT = '##EDIT'
 const TILE = '##TILE'
 const FIXED = '##FIXED'
+const OR = '##OR'
+const REQUIRED = '##REQUIRED'
+const FORBIDDEN = '##FORBIDDEN'
 
 window.addEventListener('load', async () => {
   console.log('Loading pyodide')
@@ -47,10 +50,11 @@ function submit () {
   }
   for (let i = 0; i < filenames.length; i++) {
     const filename = filenames[i].value
-    const code = contents[i].value
+    let code = contents[i].value
     const type = getType(filename, code)
     const section = newSection(filename, code, type)
-    let inputs = ''
+    let inputs = '';
+    [setup.required, setup.forbiden, code] = getRequiredForbidden(code)
 
     switch (type) {
       case 'input':
@@ -232,7 +236,7 @@ function getSubs (code) {
 }
 
 function getParsons (code) {
-  const results = { fixed: [], tiles: [] }
+  const results = { fixed: [''], tiles: [] }
   const lines = code.split('\n')
   let tileing = false
   let skip = 0
@@ -261,10 +265,15 @@ function getParsons (code) {
       return
     }
     if (line.includes(FIXED)) {
+      results.fixed.push('')
       tileing = false
       return
     }
-    tileing ? results.tiles.push(line.trim()) : results.fixed.push(line)
+    if (line.includes(OR)) {
+      results.tiles.push(line.slice(line.indexOf(OR) + OR.length).trim())
+      return
+    }
+    tileing ? results.tiles.push(line.trim()) : results.fixed[results.fixed.length - 1] += (line + '\n')
   })
   for (let i = results.tiles.length - 1; i >= 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -272,4 +281,23 @@ function getParsons (code) {
   }
   console.log(results)
   return results
+}
+
+function getRequiredForbidden (code) {
+  const output = [[], []]
+  const lines = code.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes(REQUIRED)) {
+      lines[i] = lines[i].replace(REQUIRED, '')
+      output[0].push({ [lines[i].trim()]: lines[++i].replace('##', '').trim() })
+      lines[i] = ''
+    }
+    if (lines[i].includes(FORBIDDEN)) {
+      lines[i] = lines[i].replace(FORBIDDEN, '')
+      output[1].push({ [lines[i].trim()]: lines[++i].replace('##', '').trim() })
+      lines[i] = ''
+    }
+  }
+  output[2] = lines.join('\n')
+  return output
 }

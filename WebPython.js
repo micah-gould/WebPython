@@ -79,6 +79,8 @@ async function python (setup, params) {
     let total = setup.sections[i]?.runs.length
     let pf, output
     let correct = 0
+    console.log(checkRequiredForbidden(code, setup.required, setup.forbiden))
+    if (checkRequiredForbidden(code, setup.required, setup.forbiden)) break
 
     // Function to initialize the code
     function initialize (input) {
@@ -285,6 +287,23 @@ async function python (setup, params) {
           setText(err, OUTPUT)
         }
       }
+    }
+    function checkRequiredForbidden (code, required, forbiden) {
+      setText('', OUTPUT)
+      let result = false
+      required.forEach(test => {
+        if (!code.includes(Object.keys(test)[0])) {
+          addText(Object.values(test)[0], OUTPUT)
+          result = true
+        }
+      })
+      forbiden.forEach(test => {
+        if (code.includes(Object.keys(test)[0])) {
+          addText(Object.values(test)[0], OUTPUT)
+          result = true
+        }
+      })
+      return result
     }
     switch (setup.sections[i].type) { // TODO: work on test case 5
       case 'call':
