@@ -74,7 +74,9 @@ async function python (setup, params) {
   for (let i = 0; i < setup.sections.length; i++) {
     OUTPUT.value = '' // Clear output
     const name = Object.keys(setup.requiredFiles)[i] // Get the name of the file
-    const code = params[name] // Get python code
+    const code = params[name].replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
+      return setup.args[p1 - 1]
+    }) // Get python code
     // Variables that are needed in every case
     let total = setup.sections[i]?.runs.length
     let pf, output
