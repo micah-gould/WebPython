@@ -46,7 +46,10 @@ function submit () {
   const setup = {
     sections: [],
     useFiles: {},
-    description: ''
+    description: '',
+    tolorence: 0.000001,
+    ignorespace: false,
+    ignorecase: false
   }
   for (let i = 0; i < filenames.length; i++) {
     const filename = filenames[i].value

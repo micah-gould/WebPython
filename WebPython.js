@@ -102,6 +102,18 @@ async function python (setup, params) {
     // Function to compare the given output with the expected output and update all nessasary variables
     function check (expectedOutput, output, weight) {
       total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
+      if (setup?.ignorecase) {
+        output = output.toLowerCase()
+        expectedOutput = expectedOutput.toLowerCase()
+      }
+      if (setup?.ignorespace) {
+        output = output.replace(/\s+/g, '')
+        expectedOutput = expectedOutput.replace(/\s+/g, '')
+      }
+      if (Number.isFinite(Number(output))) {
+        output = Math.round(output / set.tolorence) * setup.tolorence
+        expectedOutput = Math.round(expectedOutput / setup.tolorence) * setup.tolorence
+      }
       if (expectedOutput != output) { // Check if output was correct
         return 'fail'
       }
@@ -287,13 +299,13 @@ async function python (setup, params) {
     function checkRequiredForbidden (code, required, forbiden) {
       setText('', OUTPUT)
       let result = false
-      required.forEach(test => {
+      required?.forEach(test => {
         if (!code.includes(Object.keys(test)[0])) {
           addText(Object.values(test)[0], OUTPUT)
           result = true
         }
       })
-      forbiden.forEach(test => {
+      forbiden?.forEach(test => {
         if (code.includes(Object.keys(test)[0])) {
           addText(Object.values(test)[0], OUTPUT)
           result = true
