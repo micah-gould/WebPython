@@ -23,7 +23,53 @@
     <div id="description"></div>
     <div class="horstmann_codecheck"></div>
     <script type="text/javascript">
-        horstmann_codecheck.setup.push({ "sections": [{ "type": "parsons", "runs": [{ "output": "3.0\n0" }] }], "requiredFiles": { "": { "fixed": ["def averageRainfall(rainfall):\n", "print(averageRainfall([1, 2, -3, -4, -5, 6, 9999]))\nprint(averageRainfall([-1, -2, -3, 9999, 100]))\n\n\n\n\n"], "tiles": ["else:\n  return sum / count", "", "if (rainfall[i] >= 0):", "while (rainfall[i] != 9999):", "if (count == 0):", "count += 1", "if (rainfall[i] > 0):", "sum += rainfall[i]", "i = 0", "count = 0", "sum = 0", "return 0", "i += 1"] } }, "useFiles": {}, "description": "", "required": [{ "i = 0": "decalre i outside the loop" }], "forbiden": [] })
+        horstmann_codecheck.setup.push({
+            "sections": [
+                {
+
+                    "type": "parsons",
+                    "runs": [
+                        {
+                            "output": "3.0\n0"
+                        }
+                    ]
+                }
+            ],
+            "requiredFiles": {
+                "": {
+                    "fixed": [
+                        "def averageRainfall(rainfall):\n",
+                        "print(averageRainfall([1, 2, -3, -4, -5, 6, 9999]))\nprint(averageRainfall([-1, -2, -3, 9999, 100]))\n"
+                    ],
+                    "tiles": [
+                        "else:\n  return sum / count",
+                        "sum = 0",
+                        "i = 0",
+                        "if (rainfall[i] >= 0):",
+                        "count = 0",
+                        "if (rainfall[i] > 0):",
+                        "return 0",
+                        "sum += rainfall[i]",
+                        "while (rainfall[i] != 9999):",
+                        "if (count == 0):",
+                        "i += 1",
+                        "count += 1"
+                    ]
+                }
+            },
+            "useFiles": {},
+            "description": "",
+            "tolorence": 0.000001,
+            "ignorespace": false,
+            "ignorecase": false,
+            "timeout": 30000,
+            "required": [
+                {
+                    "i = 0": "decalre i outside the loop"
+                }
+            ],
+            "forbiden": []
+        })
     </script>
 </body>
 

@@ -49,7 +49,8 @@ function submit () {
     description: '',
     tolorence: 0.000001,
     ignorespace: false,
-    ignorecase: false
+    ignorecase: false,
+    timeout: 30000
   }
   for (let i = 0; i < filenames.length; i++) {
     const filename = filenames[i].value
@@ -93,7 +94,7 @@ function submit () {
         setup.useFiles[filename] = code
     }
   }
-  console.log(JSON.stringify(setup))
+  console.log(JSON.stringify(setup, undefined, 2))
 }
 
 function updateInputs () {
@@ -301,6 +302,6 @@ function getRequiredForbidden (code) {
       lines[i] = ''
     }
   }
-  output[2] = lines.join('\n')
+  output[2] = lines.filter(line => line !== '').join('\n')
   return output
 }
