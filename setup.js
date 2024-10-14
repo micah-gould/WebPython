@@ -9,6 +9,8 @@ const CALL = '##CALL'
 const IN = '##IN'
 const HIDE = '##HIDE'
 const EDIT = '##EDIT'
+const TILE = '##TILE'
+const FIXED = '##FIXED'
 
 window.addEventListener('load', async () => {
   console.log('Loading pyodide')
@@ -75,6 +77,11 @@ function submit () {
         section.runs.push({ caption: filenames[i + 1].value, output: getOutput(`${code}\n${contents[i + 1].value}`, inputs) })
         setup.sections.push(section)
         break
+      case 'parsons':
+        section.requiredFiles[filename] = getParsons(code)
+        section.runs.push({ output: getOutput(code) })
+        setup.sections.push(section)
+        break
       default:
         setup.useFiles[filename] = code
     }
@@ -95,9 +102,9 @@ function getType (filename, code) {
   }
   if (filename.split('.')[1] === 'in') return 'input'
   if (filename.split('.')[1] === 'html') return 'html'
+  if (code.includes(TILE)) return 'parsons'
   if (code.includes(CALL)) return 'call'
   if (code.includes(SUB)) return 'sub'
-
   if (code.includes(EDIT)) return 'run'
 }
 
@@ -221,5 +228,48 @@ function getSubs (code) {
     return { args: run.args, output: getOutput(newCode) }
   })
 
+  return results
+}
+
+function getParsons (code) {
+  const results = { fixed: [], tiles: [] }
+  const lines = code.split('\n')
+  let tileing = false
+  let skip = 0
+
+  lines.forEach(line => {
+    if (skip > 0) {
+      skip--
+      results.tiles[results.tiles.length - 1] += (line + '\n')
+      if (skip === 0) {
+        const length = results.tiles[results.tiles.length - 1].search(/\S/)
+        results.tiles[results.tiles.length - 1] = results.tiles[results.tiles.length - 1]
+          .split('\n')
+          .map(l => l.slice(length))
+          .join('\n')
+          .trim()
+      }
+      return
+    }
+    if (line.includes(TILE)) {
+      tileing = true
+      count = line.slice(TILE.length)
+      if (count > 0) {
+        skip = count
+        results.tiles.push('')
+      }
+      return
+    }
+    if (line.includes(FIXED)) {
+      tileing = false
+      return
+    }
+    tileing ? results.tiles.push(line.trim()) : results.fixed.push(line)
+  })
+  for (let i = results.tiles.length - 1; i >= 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [results.tiles[i], results.tiles[j]] = [results.tiles[j], results.tiles[i]]
+  }
+  console.log(results)
   return results
 }

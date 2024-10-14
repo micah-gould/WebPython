@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+    <script src="horstmann_codecheck.js"></script>
+    <script src="codecheck2.js"></script>
+    <script src="util.js"></script>
+    <script src="/ace/ace.js"></script>
+    <script src="/ace/theme-kuroir.js"></script>
+    <script src="/ace/theme-chrome.js"></script>
+    <script src="WebPython.js"></script>
+    <link type="text/css" rel="stylesheet" href="WebPython.css" />
+    <link type="text/css" rel="stylesheet" href="codecheck.css" />
+    <link type="text/css" rel="stylesheet" href="horstmann_codecheck.css" />
+</head>
+
+<body>
+    <h4>OUTPUT</h4>
+    <textarea disabled id="output" class="text"></textarea>
+    <div id="description"></div>
+    <div class="horstmann_codecheck"></div>
+    <script type="text/javascript">
+        horstmann_codecheck.setup.push({
+            "requiredFiles": {
+                "Rainfall.java": {
+                    "editors": [null, "public class Rainfall\r\n{\r\n   public static double averageRainfall(double[] rainfall)\r\n   {\r\n",
+                        "      . . .\r\n",
+                        "   }\r\n\r\n   public static void main(String[] args)\r\n   {\r\n      System.out.println(averageRainfall(new double[] { 1, 2, -3, -4, -5, 6, 9999 }));\r\n      System.out.println(averageRainfall(new double[] { -1, -2, -3, 9999, 100 }));      \r\n   }\r\n}\n"
+                    ]
+                }
+            },
+            "description": "\u003Cdiv\u003E\u003Cp\u003EYou are given a series of rainfall measurements. Your task is to compute the average rainfall. Negative measurement values indicate an error. Do not include those values in the average. The series is terminated by a sentinel value of 9999. Do not include the sentinel value or any values following it. You can rely on the fact that the sentinel value is present in the array.\u003C/p\u003E\n\u003C/div\u003E\n"
+        })
+    </script>
+</body>
+
+</html>

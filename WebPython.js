@@ -83,6 +83,7 @@ async function python (setup, params) {
     // Function to initialize the code
     function initialize (input) {
       try {
+        console.log(input)
         pyodide.runPython(input) // Run python
       } catch (err) {
         setText(err, OUTPUT)
@@ -91,6 +92,7 @@ async function python (setup, params) {
 
     // Function to get the output of the python code
     function getOutput () {
+      console.log('getting output')
       output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
       stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
       if (output === '') return OUTPUT.value
@@ -123,12 +125,36 @@ async function python (setup, params) {
         pyodide.runPython(newCode)
       }
     }
-
+    function parsons () {
+      report += `<p class="header run">Running ${name}</p>\n<div class="run">
+      <table class="run">
+      <tr><th>&#160;</th><th>Actual</th><th>Expected</th></tr>\n`
+      for (let j = 0; j < setup.sections[i].runs.length; j++) {
+        try {
+          pyodide.runPython(code)
+          console.log('ran', i, j)
+          const outputs = getOutput()
+          const expectedOutputs = setup.sections[i].runs[j].output
+          pf = check(expectedOutputs, outputs, 1)
+          report += `<tr><td><span class=${pf}>${pf}</span></td>
+            <td><pre>${outputs}
+            </pre></td>
+            <td><pre>${expectedOutputs}
+            </pre></td>
+            </tr>\n`
+        } catch (err) {
+          setText(err, OUTPUT)
+        }
+      }
+      report += '</table>'
+    }
     function run () {
-      report += `<p class="header run">Running ${name}</p>\n<div class="run">`
+      report += `<p class="header run">Running ${name}</p>\n<div class="run">
+      <table class="run">
+      <tr><th>&#160;</th><th>Actual</th><th>Expected</th></tr>\n`
       // Itterrate over the runs array
       for (let j = 0; j < setup.sections[i].runs.length; j++) {
-        const inputs = setup.sections[i].runs[j].input.split('\n') // Get the inputs
+        const inputs = setup.sections[i].runs[j].input?.split('\n') // Get the inputs
 
         try {
           if (code.indexOf('input') !== -1) {
@@ -147,12 +173,20 @@ async function python (setup, params) {
             initialize(code) // Run each testcase
           }
           useFiles()
-          pf = check(setup.sections[i].runs[j].output, getOutput(), 1)
+          const outputs = getOutput()
+          const expectedOutputs = setup.sections[i].runs[j].output
+          pf = check(expectedOutputs, outputs, 1)
+          report += `<tr><td><span class=${pf}>${pf}</span></td>
+            <td><pre>${outputs}
+            </pre></td>
+            <td><pre>${expectedOutputs}
+            </pre></td>
+            </tr>\n`
         } catch (err) {
           setText(err, OUTPUT)
         }
       }
-      report += `<span class=${pf}>${pf}</span>`
+      report += '</table>'
     }
     function call () {
       report += `<p class="header call">Calling with Arguments</p>
@@ -255,6 +289,9 @@ async function python (setup, params) {
     switch (setup.sections[i].type) { // TODO: work on test case 5
       case 'call':
         call()
+        break
+      case 'parsons':
+        parsons()
         break
       case 'run':
         run()
