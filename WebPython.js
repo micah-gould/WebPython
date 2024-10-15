@@ -77,14 +77,18 @@ async function python (setup, params) {
     const code = params[name].replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
       return setup.args[p1 - 1]
     }) // Get python code
+
     // Variables that are needed in every case
     let total = setup.sections[i]?.runs.length
     let pf, output
     let correct = 0
+    let j
+    const endstr = '</table>'
+
     if (checkRequiredForbidden(code, setup.required, setup.forbiden)) break
 
     // Iterrate over runs array
-    for (let j = 0; j < setup.sections[i].runs.length; j++) {
+    for (j = 0; j < setup.sections[i].runs.length; j++) {
       switch (setup.sections[i].type) { // TODO: work on test case 5
         case 'call':
           call()
@@ -126,10 +130,12 @@ async function python (setup, params) {
     }
 
     function call () {
-      report += `<p class="header call">Calling with Arguments</p>
+      const str = `<p class="header call">Calling with Arguments</p>
       <div class="call">
       <table class="run">
       <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n`
+      report += report.includes(str) ? '' : str
+
       initialize(code)
 
       const func = setup.sections[i].runs[j].caption // Get function name
@@ -138,7 +144,7 @@ async function python (setup, params) {
         pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
         const output = getOutput()
         const expectedOutput = setup.sections[i].runs[j].output
-        pf = check(expectedOutput, output, 1)
+        pf = check(expectedOutput, output)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name.split('.')[0]}</pre></td>
             <td><pre>${input}</pre></td>
@@ -151,19 +157,20 @@ async function python (setup, params) {
         setText(err, OUTPUT)
       }
 
-      report += '</table>'
+      report += j === setup.sections[i].runs.length - 1 ? endstr : ''
     }
 
     function parsons () {
-      report += `<p class="header run">Running ${name}</p>\n<div class="run">
+      const str = `<p class="header run">Running ${name}</p>\n<div class="run">
       <table class="run">
       <tr><th>&#160;</th><th>Actual</th><th>Expected</th></tr>\n`
+      report += report.includes(str) ? '' : str
 
       try {
         pyodide.runPython(code)
         const outputs = getOutput()
         const expectedOutputs = setup.sections[i].runs[j].output
-        pf = check(expectedOutputs, outputs, 1)
+        pf = check(expectedOutputs, outputs)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${outputs}
             </pre></td>
@@ -174,13 +181,14 @@ async function python (setup, params) {
         setText(err, OUTPUT)
       }
 
-      report += '</table>'
+      report += j === setup.sections[i].runs.length - 1 ? endstr : ''
     }
 
     function run () {
-      report += `<p class="header run">Running ${name}</p>\n<div class="run">
+      const str = `<p class="header run">Running ${name}</p>\n<div class="run">
       <table class="run">
       <tr><th>&#160;</th><th>Actual</th><th>Expected</th></tr>\n`
+      report += report.includes(str) ? '' : str
 
       const inputs = setup.sections[i].runs[j].input?.split('\n') // Get the inputs
 
@@ -203,7 +211,7 @@ async function python (setup, params) {
         useFiles()
         const outputs = getOutput()
         const expectedOutputs = setup.sections[i].runs[j].output
-        pf = check(expectedOutputs, outputs, 1)
+        pf = check(expectedOutputs, outputs)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${outputs}
             </pre></td>
@@ -214,18 +222,19 @@ async function python (setup, params) {
         setText(err, OUTPUT)
       }
 
-      report += '</table>'
+      report += j === setup.sections[i].runs.length - 1 ? endstr : ''
     }
 
     function sub () {
-      report += `<p class="header sub">Running program with substitutions</p>
+      let str1 = `<p class="header sub">Running program with substitutions</p>
       <div class="sub">
       <table class="run">
       <tr><th>&#160;</th><th>Name</th>`
       for (arg of setup.sections[i].runs[0].args) {
-        report += `<th>${arg.name}</th>`
+        str1 += `<th>${arg.name}</th>`
       }
-      report += '<th>Actual</th><th>Expected</th></tr>\n'
+      str1 += '<th>Actual</th><th>Expected</th></tr>\n'
+      report += report.includes(str1) ? '' : str1
 
       try {
         let newCode = code // Copy the code
@@ -236,7 +245,7 @@ async function python (setup, params) {
         pyodide.runPython(newCode) // Run each testcase
         const output = getOutput()
         const expectedOutput = setup.sections[i].runs[j].output
-        pf = check(expectedOutput, output, 1)
+        pf = check(expectedOutput, output)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name.split('.')[0]}</pre></td>`
         for (arg of setup.sections[i].runs[j].args) {
@@ -247,11 +256,12 @@ async function python (setup, params) {
         setText(err, OUTPUT)
       }
 
-      report += '</table>'
+      report += j === setup.sections[i].runs.length - 1 ? endstr : ''
     }
 
     function unitTest () { // FIXME: Breaks if use was wrong
-      report += '<p class="header unitTest">Unit Tests</p>\n<div class="run">'
+      const str = '<p class="header unitTest">Unit Tests</p>\n<div class="run">'
+      report += report.includes(str) ? '' : str
 
       try {
         initialize(code)
@@ -265,7 +275,8 @@ async function python (setup, params) {
     }
 
     function tester () {
-      report += '<p class="header tester">Testers</p>\n<div class="run">'
+      const str = '<p class="header tester">Testers</p>\n<div class="run">'
+      report += report.includes(str) ? '' : str
 
       try {
         initialize(code)
@@ -274,7 +285,7 @@ async function python (setup, params) {
         const expectedOutputs = setup.sections[i].runs[j].output.split('\n').filter(n => n)
         const outputs = getOutput().split('\n')
         for (let k = 0; k < expectedOutputs.length; k++) {
-          pf = check(expectedOutputs[k], outputs[k], 1)
+          pf = check(expectedOutputs[k], outputs[k])
           HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
           report += `<span class=${pf}>${pf}</span> `
         }
@@ -304,7 +315,8 @@ async function python (setup, params) {
     }
 
     // Function to compare the given output with the expected output and update all nessasary variables
-    function check (expectedOutput, output, weight) {
+    function check (expectedOutput, output, weight = 1) {
+      const tolorence = setup.tolorence ?? 0.000001
       total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
       if (setup?.ignorecase) {
         output = output.toLowerCase()
@@ -315,8 +327,8 @@ async function python (setup, params) {
         expectedOutput = expectedOutput.replace(/\s+/g, '')
       }
       if (Number.isFinite(Number(output))) {
-        output = Math.round(output / set.tolorence) * setup.tolorence
-        expectedOutput = Math.round(expectedOutput / setup.tolorence) * setup.tolorence
+        output = Math.round(output / tolorence) * tolorence
+        expectedOutput = Math.round(expectedOutput / tolorence) * tolorence
       }
       if (expectedOutput != output) { // Check if output was correct
         return 'fail'
