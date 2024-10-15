@@ -87,9 +87,9 @@ async function python (setup, params) {
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
-      if (setup.args.name === 'Command line arguments') {
+      if (setup.sections[i].runs[j].args[0]?.name === 'Command line arguments') {
         code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
-          return setup.args.value.split(' ')[p1 - 1]
+          return setup.sections[i].runs[j].args[0].value.split(' ')[p1 - 1]
         })
       }
 
