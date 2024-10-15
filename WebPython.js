@@ -74,9 +74,7 @@ async function python (setup, params) {
   for (let i = 0; i < setup.sections.length; i++) {
     OUTPUT.value = '' // Clear output
     const name = Object.keys(setup.requiredFiles)[i] // Get the name of the file
-    const code = params[name].replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
-      return setup.args[p1 - 1]
-    }) // Get python code
+    let code = params[name] // Get python code
 
     // Variables that are needed in every case
     let total = setup.sections[i]?.runs.length
@@ -89,6 +87,12 @@ async function python (setup, params) {
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
+      if (setup.args.name === 'Command line arguments') {
+        code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
+          return setup.args.value.split(' ')[p1 - 1]
+        })
+      }
+
       switch (setup.sections[i].type) { // TODO: work on test case 5
         case 'call':
           call()
