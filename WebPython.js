@@ -87,7 +87,7 @@ async function python (setup, params) {
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
-      if (setup.sections[i].runs[j].args[0]?.name === 'Command line arguments') {
+      if (setup.sections[i].runs[j]?.args?.[0].name === 'Command line arguments') {
         code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
           return setup.sections[i].runs[j].args[0].value.split(' ')[p1 - 1]
         })
@@ -343,7 +343,7 @@ async function python (setup, params) {
 
     function useFiles (unitTest) {
       // Run any other needed files
-      if (setup.useFiles !== undefined) {
+      if (setup.useFiles !== undefined && Object.keys(setup.useFiles).length !== 0) {
         const fileName = name.slice(0, -3) // Get the user's file's name
         // Remove any importing of the user's file because it's functions were initialized
         let newCode = Object.values(setup.useFiles)[0]
