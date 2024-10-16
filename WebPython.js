@@ -73,20 +73,20 @@ async function python (setup, params) {
   // Itterate over each section
   for (let i = 0; i < setup.sections.length; i++) {
     OUTPUT.value = '' // Clear output
-    const name = Object.keys(setup.requiredFiles)[i] // Get the name of the file
-    let code = params[name] // Get python code
 
     // Variables that are needed in every case
+    let code, pf, output, j
     let total = setup.sections[i]?.runs.length
-    let pf, output
     let correct = 0
-    let j
     const endstr = '</table>'
-
-    if (checkRequiredForbidden(code, setup.required, setup.forbiden)) break
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
+      const name = setup.sections[i].runs[j].mainclass ?? Object.keys(setup.requiredFiles)[i] // Get the name of the file
+      code = params[name] // Get python code
+
+      if (checkRequiredForbidden(code, setup.required, setup.forbiden)) break
+
       if (setup.sections[i].runs[j]?.args?.[0].name === 'Command line arguments') {
         code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
           return setup.sections[i].runs[j].args[0].value.split(' ')[p1 - 1]
@@ -152,30 +152,6 @@ async function python (setup, params) {
             <td><pre>${output}
             </pre></td>
             <td><pre>${expectedOutput}
-            </pre></td>
-            </tr>\n`
-      } catch (err) {
-        setText(err, OUTPUT)
-      }
-
-      report += j === setup.sections[i].runs.length - 1 ? endstr : ''
-    }
-
-    function parsons () {
-      const str = `<p class="header run">Running ${name}</p>\n<div class="run">
-      <table class="run">
-      <tr><th>&#160;</th><th>Actual</th><th>Expected</th></tr>\n`
-      report += report.includes(str) ? '' : str
-
-      try {
-        pyodide.runPython(code)
-        const outputs = getOutput()
-        const expectedOutputs = setup.sections[i].runs[j].output
-        pf = check(expectedOutputs, outputs)
-        report += `<tr><td><span class=${pf}>${pf}</span></td>
-            <td><pre>${outputs}
-            </pre></td>
-            <td><pre>${expectedOutputs}
             </pre></td>
             </tr>\n`
       } catch (err) {
