@@ -97,9 +97,6 @@ async function python (setup, params) {
         case 'call':
           call()
           break
-        case 'parsons':
-          parsons()
-          break
         case 'run':
           run()
           break
