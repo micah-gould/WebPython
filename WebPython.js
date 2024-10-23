@@ -1,24 +1,33 @@
+/* TODO:
+Remove no eqeqeq
+Check that code runs the same as on the server
+Fix unitTests
+Check spelling
+Capture stderr
+Read about virtual file system
+Deal with imports
+Deal with timeout */
+
 /* eslint no-undef: off, no-unused-vars: off, eqeqeq: off
     -------------
     no-undef is off because loadPyodide doesn't need to be declared locally
     no-unused-vars is off because the function Python is written in this file but called from another
-    eqeqeq if off so that an int can be comapred to a string */
+    eqeqeq if off so that an int can be comapred to a string // FIXME: switch to parse int */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
-let OUTPUT, pyodide, addText, setText // Variables that need to be global
+let OUTPUT, addText, setText, worker // Variables that need to be global
 
 window.addEventListener('load', async () => {
   function resize (area) { // Function to resize a text area
-    // Reset the height to recalculate the correct scroll height
-    area.style.height = 'auto'
-    // Set the height to the scroll height to fit the content
-    area.style.height = `${area.scrollHeight}px`
+    area.style.height = 'auto' // Reset the height to recalculate the correct scroll height
+    area.style.height = `${area.scrollHeight}px` // Set the height to the scroll height to fit the content
   }
 
   addText = (text, area) => { // Function to add text to a text area and resize it
     area.value += text
     resize(area)
   }
+
   setText = (text, area) => { // Function to set the text of a text area and resize it
     area.value = text
     resize(area)
@@ -29,21 +38,27 @@ window.addEventListener('load', async () => {
 
   setText('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
   const START = Date.now() // Get the current time
-  // Load Pyodide
-  pyodide = await loadPyodide({
-    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/', // Make sure this is the correct version of pyodide
-    stdout: (msg) => { addText(`Pyodide: ${msg}\n`, OUTPUT) },
-    stderr: (msg) => { addText(`${msg}\n`, OUTPUT) } // Unit Test raise the output as warning, so this redirects them to the output
-  })
-  // Capture the Pyodide output
-  try {
-    pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()')
-  } catch (err) {
-    setText(err, OUTPUT)
+
+  // Initialize the Web Worker for Pyodide
+  worker = new Worker('./py-worker.js')
+
+  worker.onmessage = (event) => {
+    const { type, result, error } = event.data
+    if (type === 'init') {
+      addText(`\nPyodide loaded in ${Date.now() - START}ms\n`, OUTPUT) // Inform the user that Pyodide has loaded
+    } else if (type === 'result') {
+      addText(`Python result: ${result}\n`, OUTPUT) // Show the result
+    } else if (type === 'error') {
+      addText(`Python error: ${error}\n`, OUTPUT) // Show the error
+    }
   }
 
-  const END = Date.now() // Get the current time
-  addText(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
+  // Send the 'init' message to load Pyodide
+  worker.postMessage({ type: 'init' })
+
+  // You can now send code to the worker for execution:
+  const pythonCode = 'print("Hello from Pyodide in Web Worker!")'
+  worker.postMessage({ type: 'run', data: pythonCode })
 })
 
 // Function that process the problems
@@ -75,14 +90,14 @@ async function python (setup, params) {
     OUTPUT.value = '' // Clear output
 
     // Variables that are needed in every case
-    let code, pf, output, j
+    let code, pf, output, j, name
     let total = setup.sections[i]?.runs.length
     let correct = 0
     const endstr = '</table>'
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
-      const name = setup.sections[i].runs[j].mainclass ?? Object.keys(setup.requiredFiles)[i] // Get the name of the file
+      name = setup.sections[i].runs[j].mainclass ?? Object.keys(setup.requiredFiles)[i] // Get the name of the file
       code = params[name] // Get python code
 
       if (checkRequiredForbidden(code, setup.required, setup.forbiden)) break
@@ -93,7 +108,7 @@ async function python (setup, params) {
         })
       }
 
-      switch (setup.sections[i].type) { // TODO: work on test case 5
+      switch (setup.sections[i].type) { // TODO: work file system
         case 'call':
           call()
           break
@@ -284,7 +299,10 @@ async function python (setup, params) {
 
     // Function to get the output of the python code
     function getOutput () {
-      output = pyodide.runPython('sys.stdout.getvalue()').split('\n').slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+      output = pyodide.runPython('sys.stdout.getvalue()')
+        .split('\n')
+        .slice(stdoutOLD.length, -1)
+        .join('\n') // Get the new outputs
       stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
       if (output === '') return OUTPUT.value
       addText(output + '\n', OUTPUT)
@@ -293,14 +311,14 @@ async function python (setup, params) {
 
     // Function to compare the given output with the expected output and update all nessasary variables
     function check (expectedOutput, output, weight = 1) {
-      const tolorence = setup.tolorence ?? 0.000001
+      const tolorence = setup.tolorence ?? 0.000001 // FIXME: misspelled tolerance
       total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
       if (setup?.ignorecase) {
         output = output.toLowerCase()
         expectedOutput = expectedOutput.toLowerCase()
       }
       if (setup?.ignorespace) {
-        output = output.replace(/\s+/g, '')
+        output = output.replace(/\s+/g, '') // TODO: check that it is the same as the server
         expectedOutput = expectedOutput.replace(/\s+/g, '')
       }
       if (Number.isFinite(Number(output))) {
@@ -317,7 +335,7 @@ async function python (setup, params) {
     function useFiles (unitTest) {
       // Run any other needed files
       if (setup.useFiles !== undefined && Object.keys(setup.useFiles).length !== 0) {
-        const fileName = name.slice(0, -3) // Get the user's file's name
+        const fileName = name.slice(0, -3) // TODO: change to replace .py // Get the user's file's name
         // Remove any importing of the user's file because it's functions were initialized
         let newCode = Object.values(setup.useFiles)[0]
           .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
