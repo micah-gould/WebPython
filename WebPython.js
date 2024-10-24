@@ -96,7 +96,7 @@ async function python (setup, params) {
       setup.sections[i].runs[j]?.args?.forEach(arg => {
         if (arg.name === 'Command line arguments') {
           code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
-            return setup.sections[i].runs[j].args[0].value.split(' ')[p1 - 1]
+            return arg.value.split(' ')[p1 - 1]
           })
         }
       })
@@ -214,7 +214,10 @@ async function python (setup, params) {
       <div class="sub">
       <table class="run">
       <tr><th>&#160;</th><th>Name</th>`
-      for (arg of setup.sections[i].runs[0].args) {
+
+      args = setup.sections[i].runs[i].args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
+
+      for (arg of args) {
         str1 += `<th>${arg.name}</th>`
       }
       str1 += '<th>Actual</th><th>Expected</th></tr>\n'
@@ -223,7 +226,7 @@ async function python (setup, params) {
       try {
         let newCode = code // Copy the code
         // Replace the variables with their new values
-        for (arg of setup.sections[i].runs[j].args) {
+        for (arg of args) {
           newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
         }
         pyodide.runPython(newCode) // Run each testcase
@@ -232,7 +235,7 @@ async function python (setup, params) {
         pf = check(expectedOutput, output)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name.split('.')[0]}</pre></td>`
-        for (arg of setup.sections[i].runs[j].args) {
+        for (arg of args) {
           report += `<td><pre>${arg.value}</pre></td>`
         }
         report += `<td><pre>${output}\n</pre></td>\n<td><pre>${expectedOutput}\n</pre></td>\n</tr>\n`
