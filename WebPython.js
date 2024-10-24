@@ -309,7 +309,7 @@ async function python (setup, params) {
       stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
       if (output === '' && err === '') return OUTPUT.value
-      addText(`Section ${i + 1}, Run ${j + 1}:\n  Output:\n  ${output}\n  Errors:\n  ${err}\n---\n`, OUTPUT)
+      addText(`${output}\n${err}`, OUTPUT)
       return { output, err }
     }
 
