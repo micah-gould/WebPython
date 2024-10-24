@@ -1,7 +1,5 @@
 /* TODO:
 Check that code runs the same as on the server
-Fix unitTests
-Capture stderr
 Read about virtual file system
 Deal with imports
 Deal with timeout */
