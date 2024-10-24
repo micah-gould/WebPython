@@ -1,4 +1,5 @@
 /* TODO:
+FIXME: Fix scoring of unitTests
 Check that code runs the same as on the server
 Read about virtual file system
 Deal with imports
@@ -246,7 +247,7 @@ async function python (setup, params) {
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
     }
 
-    function unitTest () { // FIXME: Breaks if use was wrong
+    function unitTest () { // FIXME: find a way to score unit tests
       const str = '<p class="header unitTest">Unit Tests</p>\n<div class="run">'
       report += report.includes(str) ? '' : str
 
