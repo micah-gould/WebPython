@@ -307,7 +307,7 @@ async function python (setup, params) {
       stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
       if (output === '' && err === '') return OUTPUT.value
-      addText(output + '\n\n' + err + '\n', OUTPUT)
+      addText('Output:\n' + output + '\nErrors:\n' + err + '\n', OUTPUT)
       return { output, err }
     }
 
