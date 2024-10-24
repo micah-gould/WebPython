@@ -339,7 +339,7 @@ async function python (setup, params) {
     function useFiles (unitTest) {
       // Run any other needed files
       if (setup.useFiles !== undefined && Object.keys(setup.useFiles).length !== 0) {
-        const fileName = name.slice(0, -3) // TODO: change to replace .py // Get the user's file's name
+        const fileName = name.replace('.py', '') // Get the user's file's name
         // Remove any importing of the user's file because it's functions were initialized
         let newCode = Object.values(setup.useFiles)[0]
           .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
