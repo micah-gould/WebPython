@@ -1,5 +1,4 @@
 /* TODO:
-Remove no eqeqeq
 Check that code runs the same as on the server
 Fix unitTests
 Check spelling
@@ -8,14 +7,13 @@ Read about virtual file system
 Deal with imports
 Deal with timeout */
 
-/* eslint no-undef: off, no-unused-vars: off, eqeqeq: off
+/* eslint no-undef: off, no-unused-vars: off
     -------------
     no-undef is off because loadPyodide doesn't need to be declared locally
-    no-unused-vars is off because the function Python is written in this file but called from another
-    eqeqeq if off so that an int can be comapred to a string // FIXME: switch to parse int */
+    no-unused-vars is off because the function Python is written in this file but called from another */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
-let OUTPUT, addText, setText, worker // Variables that need to be global
+let OUTPUT, addText, setText, pyodide // Variables that need to be global
 
 window.addEventListener('load', async () => {
   function resize (area) { // Function to resize a text area
@@ -39,26 +37,21 @@ window.addEventListener('load', async () => {
   setText('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
   const START = Date.now() // Get the current time
 
-  // Initialize the Web Worker for Pyodide
-  worker = new Worker('./py-worker.js')
-
-  worker.onmessage = (event) => {
-    const { type, result, error } = event.data
-    if (type === 'init') {
-      addText(`\nPyodide loaded in ${Date.now() - START}ms\n`, OUTPUT) // Inform the user that Pyodide has loaded
-    } else if (type === 'result') {
-      addText(`Python result: ${result}\n`, OUTPUT) // Show the result
-    } else if (type === 'error') {
-      addText(`Python error: ${error}\n`, OUTPUT) // Show the error
-    }
+  // Load Pyodide
+  pyodide = await loadPyodide({
+    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/', // Make sure this is the correct version of pyodide
+    stdout: (msg) => { addText(`Pyodide: ${msg}\n`, OUTPUT) },
+    stderr: (msg) => { addText(`${msg}\n`, OUTPUT) } // Unit Test raise the output as warning, so this redirects them to the output
+  })
+  // Capture the Pyodide output
+  try {
+    pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()')
+  } catch (err) {
+    setText(err, OUTPUT)
   }
 
-  // Send the 'init' message to load Pyodide
-  worker.postMessage({ type: 'init' })
-
-  // You can now send code to the worker for execution:
-  const pythonCode = 'print("Hello from Pyodide in Web Worker!")'
-  worker.postMessage({ type: 'run', data: pythonCode })
+  const END = Date.now() // Get the current time
+  addText(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
 })
 
 // Function that process the problems
@@ -325,7 +318,7 @@ async function python (setup, params) {
         output = Math.round(output / tolorence) * tolorence
         expectedOutput = Math.round(expectedOutput / tolorence) * tolorence
       }
-      if (expectedOutput != output) { // Check if output was correct
+      if (expectedOutput !== output) { // Check if output was correct
         return 'fail'
       }
       correct += weight
