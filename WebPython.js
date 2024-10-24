@@ -1,7 +1,6 @@
 /* TODO:
 Check that code runs the same as on the server
 Fix unitTests
-Check spelling
 Capture stderr
 Read about virtual file system
 Deal with imports
@@ -13,6 +12,7 @@ Deal with timeout */
     no-unused-vars is off because the function Python is written in this file but called from another */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
+let stderrOLD = [] // Array to store all past errors (by line)
 let OUTPUT, addText, setText, pyodide // Variables that need to be global
 
 window.addEventListener('load', async () => {
@@ -45,7 +45,7 @@ window.addEventListener('load', async () => {
   })
   // Capture the Pyodide output
   try {
-    pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()')
+    pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
   } catch (err) {
     setText(err, OUTPUT)
   }
@@ -151,7 +151,7 @@ async function python (setup, params) {
       const input = setup.sections[i].runs[j].args[0].value // Get the inputs
       try {
         pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
-        const output = getOutput()
+        const output = getOutput().output
         const expectedOutput = setup.sections[i].runs[j].output
         pf = check(expectedOutput, output)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
@@ -194,7 +194,7 @@ async function python (setup, params) {
           initialize(code) // Run each testcase
         }
         useFiles()
-        const outputs = getOutput()
+        const outputs = getOutput().output
         const expectedOutputs = setup.sections[i].runs[j].output
         pf = check(expectedOutputs, outputs)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
@@ -228,7 +228,7 @@ async function python (setup, params) {
           newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
         }
         pyodide.runPython(newCode) // Run each testcase
-        const output = getOutput()
+        const output = getOutput().output
         const expectedOutput = setup.sections[i].runs[j].output
         pf = check(expectedOutput, output)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
@@ -251,7 +251,9 @@ async function python (setup, params) {
       try {
         initialize(code)
         useFiles(true)
-        pf = check('OK', OUTPUT.value.split('\n')[4], parseInt(OUTPUT.value.split('\n')[2].match(/\d+/)[0]))
+        const output = getOutput().err
+        const expectedOutput = setup.sections[i].runs[j].output
+        pf = check(expectedOutput, output)
       } catch (err) {
         setText(err, OUTPUT)
       }
@@ -268,7 +270,7 @@ async function python (setup, params) {
         useFiles()
         let HTMLoutput = '<pre class=\'output\'>'
         const expectedOutputs = setup.sections[i].runs[j].output.split('\n').filter(n => n)
-        const outputs = getOutput().split('\n')
+        const outputs = getOutput().output.split('\n')
         for (let k = 0; k < expectedOutputs.length; k++) {
           pf = check(expectedOutputs[k], outputs[k])
           HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
@@ -297,14 +299,21 @@ async function python (setup, params) {
         .slice(stdoutOLD.length, -1)
         .join('\n') // Get the new outputs
       stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
-      if (output === '') return OUTPUT.value
-      addText(output + '\n', OUTPUT)
-      return output
+
+      err = pyodide.runPython('sys.stderr.getvalue()')
+        .split('\n')
+        .slice(stderrOLD.length, -1)
+        .join('\n') // Get the new errors
+      stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
+
+      if (output === '' && err === '') return OUTPUT.value
+      addText(output + '\n\n' + err + '\n', OUTPUT)
+      return { output, err }
     }
 
     // Function to compare the given output with the expected output and update all nessasary variables
     function check (expectedOutput, output, weight = 1) {
-      const tolorence = setup.tolorence ?? 0.000001 // FIXME: misspelled tolerance
+      const tolerance = setup.tolerance ?? 0.000001
       total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
       if (setup?.ignorecase) {
         output = output.toLowerCase()
@@ -315,8 +324,8 @@ async function python (setup, params) {
         expectedOutput = expectedOutput.replace(/\s+/g, '')
       }
       if (Number.isFinite(Number(output))) {
-        output = Math.round(output / tolorence) * tolorence
-        expectedOutput = Math.round(expectedOutput / tolorence) * tolorence
+        output = Math.round(output / tolerance) * tolerance
+        expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
       }
       if (expectedOutput !== output) { // Check if output was correct
         return 'fail'
