@@ -338,10 +338,15 @@ async function python (setup, params) {
 
     function useFiles (unitTest) {
       // Run any other needed files
-      if (setup.useFiles !== undefined && Object.keys(setup.useFiles).length !== 0) {
-        const fileName = name.replace('.py', '') // Get the user's file's name
-        // Remove any importing of the user's file because it's functions were initialized
-        let newCode = Object.values(setup.useFiles)[0]
+      if (setup.useFiles === undefined || Object.keys(setup.useFiles).length === 0) return
+
+      const fileName = name.replace('.py', '') // Get the user's file's name
+
+      // Remove any importing of the user's file because it's functions were initialized
+      for (file of Object.values(setup.useFiles)) {
+        if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(file) &&
+            !(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(file)) continue
+        let newCode = file
           .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
           .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
             p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
