@@ -93,11 +93,13 @@ async function python (setup, params) {
 
       if (checkRequiredForbidden(code, setup.required, setup.forbiden)) break
 
-      if (setup.sections[i].runs[j]?.args?.[0].name === 'Command line arguments') {
-        code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
-          return setup.sections[i].runs[j].args[0].value.split(' ')[p1 - 1]
-        })
-      }
+      setup.sections[i].runs[j]?.args?.forEach(arg => {
+        if (arg.name === 'Command line arguments') {
+          code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
+            return setup.sections[i].runs[j].args[0].value.split(' ')[p1 - 1]
+          })
+        }
+      })
 
       switch (setup.sections[i].type) { // TODO: work file system
         case 'call':
@@ -119,7 +121,6 @@ async function python (setup, params) {
     }
 
     function checkRequiredForbidden (code, required, forbiden) {
-      setText('', OUTPUT)
       let result = false
       required?.forEach(test => {
         if (!code.includes(Object.keys(test)[0])) {
@@ -146,7 +147,7 @@ async function python (setup, params) {
       initialize(code)
 
       const func = setup.sections[i].runs[j].caption // Get function name
-      const input = setup.sections[i].runs[j].args[0].value // Get the inputs
+      const input = setup.sections[i].runs[j].args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
       try {
         pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
         const output = getOutput().output
@@ -305,7 +306,7 @@ async function python (setup, params) {
       stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
       if (output === '' && err === '') return OUTPUT.value
-      addText('Output:\n' + output + '\nErrors:\n' + err + '\n', OUTPUT)
+      addText(`Section ${i + 1}, Run ${j + 1}:\n  Output:\n  ${output}\n  Errors:\n  ${err}\n---\n`, OUTPUT)
       return { output, err }
     }
 
