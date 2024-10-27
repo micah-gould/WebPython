@@ -1,6 +1,7 @@
 /* TODO:
 Read about virtual file system
-Deal with timeout */
+Deal with timeout
+Reload pyodide for each command line args? */
 
 /* eslint no-undef: off, no-unused-vars: off
     -------------
