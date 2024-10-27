@@ -30,7 +30,7 @@ window.addEventListener('load', async () => {
     resize(area)
   }
 
-  document.getElementById('description').innerHTML += window.horstmann_codecheck.setup[0].description // Set the description of the task
+  document.getElementById('description').innerHTML += window.horstmann_codecheck.setup[0]?.description ?? '' // Set the description of the task
   OUTPUT = document.getElementById('output') // Get the text area for the output
 
   setText('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
@@ -92,8 +92,11 @@ async function python (setup, params) {
       name = setup.sections[i].runs[j].mainclass ?? Object.keys(setup.requiredFiles)[i] // Get the name of the file
       code = params[name] // Get python code
 
-      if (checkRequiredForbidden(code, setup.required, setup.forbiden)) break
-
+      const checks = checkRequiredForbidden(code)
+      if (checks.result === true) {
+        addText(checks.message ?? '', OUTPUT)
+        break
+      }
       setup.sections[i].runs[j]?.args?.forEach(arg => {
         if (arg.name === 'Command line arguments') {
           code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
@@ -101,6 +104,8 @@ async function python (setup, params) {
           })
         }
       })
+
+      code = runDependencies(code)
 
       switch (setup.sections[i].type) { // TODO: work file system
         case 'call':
@@ -121,21 +126,58 @@ async function python (setup, params) {
       }
     }
 
-    function checkRequiredForbidden (code, required, forbiden) {
+    function checkRequiredForbidden (file) {
       let result = false
-      required?.forEach(test => {
-        if (!code.includes(Object.keys(test)[0])) {
-          addText(Object.values(test)[0], OUTPUT)
-          result = true
-        }
+      return {
+        message: setup.conditions?.forEach(test => {
+          if (file === params[test.path]) {
+            if (test?.forbidden === true) {
+              if (new RegExp(test.regex).test(file)) {
+                result = true
+                return test?.message
+              }
+            } else {
+              if (!new RegExp(test.regex).test(file)) {
+                result = true
+                return test?.message
+              }
+            }
+          }
+        }),
+        result
+      }
+    }
+
+    function runDependencies (oldCode) {
+      // Run any dependent files
+      const files = []
+
+      const newCode = oldCode
+        .replace(/from\s+(.*?)\s+import\s+\w+/g, (_, x) => {
+          files.push(x)
+          return ''
+        })
+        .replace(/import\s+([\w,\s]+)/g, (_, imports) =>
+          imports.split(',').map(item => (item.trim() + '.py')).filter(item => {
+            if (params[item] !== undefined || setup?.useFiles?.[item] !== undefined) {
+              files.push(item.replace('.py', '')) // Log if found in arr1 or arr2
+              return false // Remove from final string
+            }
+            return true // Keep if not in arr1 or arr2
+          }).join(', ')
+        )
+        .replace(/\b(\w+)\.(\w+)\b/g, (match, x, y) => {
+          if (files.includes(x)) {
+            return y // Return only y if x is in the array
+          }
+          return match // Keep x.y if x is not in the array
+        })
+
+      files.forEach(file => {
+        initialize(runDependencies(params[file + '.py'] ?? setup?.useFiles?.[file + '.py']))
       })
-      forbiden?.forEach(test => {
-        if (code.includes(Object.keys(test)[0])) {
-          addText(Object.values(test)[0], OUTPUT)
-          result = true
-        }
-      })
-      return result
+
+      return newCode
     }
 
     function call () {
@@ -193,7 +235,7 @@ async function python (setup, params) {
         } else {
           initialize(code) // Run each testcase
         }
-        useFiles()
+        runDependents()
         const outputs = getOutput().output
         const expectedOutputs = setup.sections[i].runs[j].output
         pf = check(expectedOutputs, outputs)
@@ -253,7 +295,7 @@ async function python (setup, params) {
 
       try {
         initialize(code)
-        useFiles(true)
+        runDependents(true)
         const output = getOutput().err
         const expectedOutput = setup.sections[i].runs[j].output
         pf = check(expectedOutput, output)
@@ -270,7 +312,7 @@ async function python (setup, params) {
 
       try {
         initialize(code)
-        useFiles()
+        runDependents()
         let HTMLoutput = '<pre class=\'output\'>'
         const expectedOutputs = setup.sections[i].runs[j].output.split('\n').filter(n => n)
         const outputs = getOutput().output.split('\n')
@@ -337,7 +379,7 @@ async function python (setup, params) {
       return 'pass'
     }
 
-    function useFiles (unitTest) {
+    function runDependents (unitTest) {
       // Run any other needed files
       if (setup.useFiles === undefined || Object.keys(setup.useFiles).length === 0) return
 
@@ -345,6 +387,11 @@ async function python (setup, params) {
 
       // Remove any importing of the user's file because it's functions were initialized
       for (file of Object.values(setup.useFiles)) {
+        const checks = checkRequiredForbidden(file)
+        if (checks.result === true) {
+          addText(checks.message ?? '', OUTPUT)
+          break
+        }
         if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(file) &&
             !(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(file)) continue
         let newCode = file
@@ -354,6 +401,7 @@ async function python (setup, params) {
           )
           .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
         newCode += unitTest ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : ''
+        newCode = runDependencies(newCode)
         pyodide.runPython(newCode)
       }
     }

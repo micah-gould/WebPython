@@ -26,49 +26,96 @@
         horstmann_codecheck.setup.push({
             "sections": [
                 {
-
-                    "type": "run",
+                    "type": "call",
                     "runs": [
                         {
-                            "output": "3.0\n0"
+                            "caption": "findIndexOfVal",
+                            "mainclass": "progCodeCheck.py",
+                            "args": [
+                                {
+                                    "name": "Arguments",
+                                    "value": "[1, 2, 3, 4, 5], 2"
+                                }
+                            ],
+                            "output": "1\n\n"
+                        },
+                        {
+                            "caption": "findIndexOfVal",
+                            "mainclass": "progCodeCheck.py",
+                            "args": [
+                                {
+                                    "name": "Arguments",
+                                    "value": "[3,6,2,5,7], 2"
+                                }
+                            ],
+                            "output": "2\n\n"
+                        },
+                        {
+                            "caption": "findIndexOfVal",
+                            "mainclass": "progCodeCheck.py",
+                            "args": [
+                                {
+                                    "name": "Arguments",
+                                    "value": "[3,6,2,5,7], 7"
+                                }
+                            ],
+                            "output": "4\n\n"
+                        },
+                        {
+                            "caption": "findIndexOfVal",
+                            "mainclass": "progCodeCheck.py",
+                            "args": [
+                                {
+                                    "name": "Arguments",
+                                    "value": "[3,6,2,5,7], 3"
+                                }
+                            ],
+                            "output": "0\n\n"
+                        },
+                        {
+                            "caption": "findIndexOfVal",
+                            "mainclass": "progCodeCheck.py",
+                            "args": [
+                                {
+                                    "name": "Arguments",
+                                    "value": "[3,6,2,5,7], 9"
+                                }
+                            ],
+                            "output": "-1\n\n"
+                        },
+                        {
+                            "caption": "findIndexOfVal",
+                            "mainclass": "progCodeCheck.py",
+                            "args": [
+                                {
+                                    "name": "Arguments",
+                                    "value": "[], 9"
+                                }
+                            ],
+                            "output": "-1\n\n"
                         }
                     ]
                 }
             ],
             "requiredFiles": {
-                "": {
-                    "fixed": [
-                        "def averageRainfall(rainfall):\n",
-                        "print(averageRainfall([1, 2, -3, -4, -5, 6, 9999]))\nprint(averageRainfall([-1, -2, -3, 9999, 100]))\n"
-                    ],
-                    "tiles": [
-                        "else:\n  return sum / count",
-                        "sum = 0",
-                        "i = 0",
-                        "if (rainfall[i] >= 0):",
-                        "count = 0",
-                        "if (rainfall[i] > 0):",
-                        "return 0",
-                        "sum += rainfall[i]",
-                        "while (rainfall[i] != 9999):",
-                        "if (count == 0):",
-                        "i += 1",
-                        "count += 1"
+                "progCodeCheck.py": {
+                    "editors": [
+                        "import test \r\n# Given a list of integers and a value, return the position \r\n# of the last occurrence of the value in the list, or -1 if \r\n# the value does not exist. Do not use the find or index methods.\r\n\r\ndef findIndexOfVal(lst, val):\r\n   for i in range(len(lst)):\n      if lst[i] == val:\n         return  test.i\n   return -1"
                     ]
                 }
             },
-            "useFiles": {},
-            "description": "",
-            "tolorence": 0.000001,
-            "ignorespace": false,
-            "ignorecase": false,
-            "timeout": 30000,
-            "required": [
+            "conditions": [
                 {
-                    "i = 0": "decalre i outside the loop"
+                    "forbidden": true,
+                    "path": "progCodeCheck.py",
+                    "regex": "\\.find\\s*\\("
+                },
+                {
+                    "forbidden": true,
+                    "path": "progCodeCheck.py",
+                    "regex": "\\.index\\s*\\("
                 }
-            ],
-            "forbiden": []
+            ]
         })
     </script>
 </body>
