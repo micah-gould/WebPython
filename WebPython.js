@@ -364,15 +364,15 @@ async function python (setup, params) {
       const tolerance = setup?.attributes?.tolerance ?? 0.000001
       total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
       if (setup?.attributes?.ignorecase === true) {
-        output = output.toLowerCase()
+        output = output.toLowerCase() // Closest JS equivlent to equalsIgnoreCase
         expectedOutput = expectedOutput.toLowerCase()
       }
       if (setup?.attributes?.ignorespace === true) {
-        output = output.replace(/\s+/g, '') // TODO: check that it is the same as the server
+        output = output.replace(/\s+/g, '') // Equivlent to normalizeWS from java
         expectedOutput = expectedOutput.replace(/\s+/g, '')
       }
       if (Number.isFinite(Number(output))) {
-        output = Math.round(output / tolerance) * tolerance
+        output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
         expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
       }
       if (expectedOutput !== output) { // Check if output was correct
