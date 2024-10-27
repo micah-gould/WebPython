@@ -1,5 +1,4 @@
 /* TODO:
-FIXME: Fix scoring of unitTests
 Read about virtual file system
 Deal with timeout */
 
@@ -19,7 +18,7 @@ window.addEventListener('load', async () => {
   }
 
   addText = (text, area) => { // Function to add text to a text area and resize it
-    area.value += text
+    area.value = (area.value + text).trim()
     resize(area)
   }
 
@@ -85,7 +84,6 @@ async function python (setup, params) {
     let correct = 0
     const endstr = '</table>'
     const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) }
-    console.log(otherFiles)
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
@@ -291,15 +289,15 @@ async function python (setup, params) {
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
     }
 
-    function unitTest () { // FIXME: find a way to score unit tests
+    function unitTest () {
       const str = '<p class="header unitTest">Unit Tests</p>\n<div class="run">'
       report += report.includes(str) ? '' : str
       try {
         initialize(code)
         runDependents(true)
-        const output = getOutput().err
-        const expectedOutput = setup.sections[i].runs[j].output
-        pf = check(expectedOutput, output)
+        total = (setup.sections[i].runs[j].output.split('\n')[0].match(/\./g) || []).length
+        correct = total - (getOutput().err.split('\n')[0].match(/F/g) || []).length
+        pf = correct === total ? 'pass' : 'fail'
       } catch (err) {
         setText(err, OUTPUT)
       }
