@@ -2,7 +2,6 @@
 FIXME: Fix scoring of unitTests
 Check that code runs the same as on the server
 Read about virtual file system
-Deal with imports
 Deal with timeout */
 
 /* eslint no-undef: off, no-unused-vars: off
