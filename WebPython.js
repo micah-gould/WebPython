@@ -89,7 +89,7 @@ async function python (setup, params) {
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
       name = setup.sections[i].runs[j].mainclass // Get the name of the file
-      code = params[name] // Get python code
+      code = { ...params, ...otherFiles }[name] // Get python code
 
       const checks = checkRequiredForbidden(code)
       if (checks.result === true) {
@@ -153,23 +153,26 @@ async function python (setup, params) {
 
       const newCode = oldCode
         .replace(/from\s+(.*?)\s+import\s+\w+/g, (_, x) => {
-          files.push(x)
-          return ''
+          if ({ ...params, ...otherFiles }[x.trim() + '.py'] !== undefined) {
+            files.push(x)
+            return ''
+          }
+          return _
         })
         .replace(/import\s+([^\n]+)/g, (_, imports) =>
           'import ' + imports.split(',').map(item => (item.trim())).filter(item => {
-            if (params[item + '.py'] !== undefined || otherFiles?.[item + '.py'] !== undefined) {
-              files.push(item) // Log if found in arr1 or arr2
+            if ({ ...params, ...otherFiles }[item + '.py'] !== undefined) {
+              files.push(item)
               return false // Remove from final string
             }
             return true // Keep if not in arr1 or arr2
           }).join(', ')
         )
-        .replace(/\b(\w+)\.(\w+)\b/g, (match, x, y) => {
+        .replace(/\b(\w+)\.(\w+)\b/g, (_, x, y) => {
           if (files.includes(x)) {
             return y // Return only y if x is in the array
           }
-          return match // Keep x.y if x is not in the array
+          return _ // Keep x.y if x is not in the array
         })
 
       files.forEach(file => {
@@ -330,6 +333,7 @@ async function python (setup, params) {
 
     // Function to initialize the code
     function initialize (input) {
+      console.log(`running:\n${input}`)
       try {
         pyodide.runPython(input) // Run python
       } catch (err) {
