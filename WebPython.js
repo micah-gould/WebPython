@@ -89,7 +89,7 @@ async function python (setup, params) {
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
-      name = setup.sections[i].runs[j].mainclass ?? Object.keys(setup.requiredFiles)[i] // Get the name of the file
+      name = setup.sections[i].runs[j].mainclass // Get the name of the file
       code = params[name] // Get python code
 
       const checks = checkRequiredForbidden(code)
