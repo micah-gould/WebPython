@@ -84,7 +84,7 @@ async function python (setup, params) {
     let total = setup.sections[i]?.runs.length
     let correct = 0
     const endstr = '</table>'
-    const otherFiles = [...(setup?.useFile ?? []), ...(setup?.hiddenFiles ?? [])]
+    const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) }
     console.log(otherFiles)
 
     // Iterrate over runs array
@@ -159,7 +159,7 @@ async function python (setup, params) {
         })
         .replace(/import\s+([^\n]+)/g, (_, imports) =>
           'import ' + imports.split(',').map(item => (item.trim())).filter(item => {
-            if (params[item + '.py'] !== undefined || setup?.useFiles?.[item + '.py'] !== undefined) {
+            if (params[item + '.py'] !== undefined || otherFiles?.[item + '.py'] !== undefined) {
               files.push(item) // Log if found in arr1 or arr2
               return false // Remove from final string
             }
@@ -174,7 +174,7 @@ async function python (setup, params) {
         })
 
       files.forEach(file => {
-        initialize(runDependencies(params[file + '.py'] ?? setup?.useFiles?.[file + '.py']))
+        initialize(runDependencies(params[file + '.py'] ?? otherFiles?.[file + '.py']))
       })
 
       return newCode
@@ -382,12 +382,12 @@ async function python (setup, params) {
 
     function runDependents (unitTest) {
       // Run any other needed files
-      if (setup.useFiles === undefined || Object.keys(setup.useFiles).length === 0) return
+      if (Object.keys(otherFiles).length === 0) return
 
       const fileName = name.replace('.py', '') // Get the user's file's name
 
       // Remove any importing of the user's file because it's functions were initialized
-      for (file of Object.values(setup.useFiles)) {
+      for (file of Object.values(otherFiles)) {
         const checks = checkRequiredForbidden(file)
         if (checks.result === true) {
           addText(checks.message ?? '', OUTPUT)
