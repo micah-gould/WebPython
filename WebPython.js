@@ -403,7 +403,6 @@ async function python (setup, params) {
           .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
         newCode += unitTest ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : ''
         newCode = runDependencies(newCode)
-        console.log(newCode)
         pyodide.runPython(newCode)
       }
     }
