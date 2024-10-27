@@ -85,6 +85,8 @@ async function python (setup, params) {
     let total = setup.sections[i]?.runs.length
     let correct = 0
     const endstr = '</table>'
+    const otherFiles = [...(setup?.useFile ?? []), ...(setup?.hiddenFiles ?? [])]
+    console.log(otherFiles)
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
@@ -226,7 +228,9 @@ async function python (setup, params) {
           code.match(/input\((.*?)\)/g).forEach(str => {
             const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
             const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
-            newCode = newCode.slice(0, index) + `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` + newCode.slice(index) // Print the input question and inputed value
+            newCode = newCode.slice(0, index) +
+                      `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` +
+                      newCode.slice(index) // Print the input question and inputed value
             newCode = newCode.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
           })
 
@@ -357,13 +361,13 @@ async function python (setup, params) {
 
     // Function to compare the given output with the expected output and update all nessasary variables
     function check (expectedOutput, output, weight = 1) {
-      const tolerance = setup.tolerance ?? 0.000001
+      const tolerance = setup?.attributes?.tolerance ?? 0.000001
       total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
-      if (setup?.ignorecase) {
+      if (setup?.attributes?.ignorecase === true) {
         output = output.toLowerCase()
         expectedOutput = expectedOutput.toLowerCase()
       }
-      if (setup?.ignorespace) {
+      if (setup?.attributes?.ignorespace === true) {
         output = output.replace(/\s+/g, '') // TODO: check that it is the same as the server
         expectedOutput = expectedOutput.replace(/\s+/g, '')
       }
