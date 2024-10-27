@@ -157,10 +157,10 @@ async function python (setup, params) {
           files.push(x)
           return ''
         })
-        .replace(/import\s+([\w,\s]+)/g, (_, imports) =>
-          imports.split(',').map(item => (item.trim() + '.py')).filter(item => {
-            if (params[item] !== undefined || setup?.useFiles?.[item] !== undefined) {
-              files.push(item.replace('.py', '')) // Log if found in arr1 or arr2
+        .replace(/import\s+([^\n]+)/g, (_, imports) =>
+          'import ' + imports.split(',').map(item => (item.trim())).filter(item => {
+            if (params[item + '.py'] !== undefined || setup?.useFiles?.[item + '.py'] !== undefined) {
+              files.push(item) // Log if found in arr1 or arr2
               return false // Remove from final string
             }
             return true // Keep if not in arr1 or arr2
@@ -294,7 +294,6 @@ async function python (setup, params) {
     function unitTest () { // FIXME: find a way to score unit tests
       const str = '<p class="header unitTest">Unit Tests</p>\n<div class="run">'
       report += report.includes(str) ? '' : str
-
       try {
         initialize(code)
         runDependents(true)
@@ -404,6 +403,7 @@ async function python (setup, params) {
           .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
         newCode += unitTest ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : ''
         newCode = runDependencies(newCode)
+        console.log(newCode)
         pyodide.runPython(newCode)
       }
     }
