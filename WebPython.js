@@ -12,6 +12,27 @@ let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
 let OUTPUT, addText, setText, pyodide // Variables that need to be global
 
+async function loadPython (args) {
+  setText('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
+
+  const START = Date.now() // Get the current time
+  console.log()
+  // Load Pyodide
+  const py = await loadPyodide({ args: args ?? [] })
+
+  // Capture the Pyodide output
+  try {
+    py.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
+  } catch (err) {
+    setText(err, OUTPUT)
+  }
+
+  const END = Date.now() // Get the current time
+  addText(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
+
+  return py
+}
+
 window.addEventListener('load', async () => {
   function resize (area) { // Function to resize a text area
     area.style.height = 'auto' // Reset the height to recalculate the correct scroll height
@@ -31,23 +52,7 @@ window.addEventListener('load', async () => {
   document.getElementById('description').innerHTML += window.horstmann_codecheck.setup[0]?.description ?? '' // Set the description of the task
   OUTPUT = document.getElementById('output') // Get the text area for the output
 
-  setText('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
-  const START = Date.now() // Get the current time
-
-  // Load Pyodide
-  pyodide = await loadPyodide({
-    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/' // Make sure this is the correct version of pyodide
-  })
-
-  // Capture the Pyodide output
-  try {
-    pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
-  } catch (err) {
-    setText(err, OUTPUT)
-  }
-
-  const END = Date.now() // Get the current time
-  addText(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
+  pyodide = await loadPython()
 })
 
 // Function that process the problems
@@ -95,13 +100,10 @@ async function python (setup, params) {
         addText(checks.message ?? '', OUTPUT)
         break
       }
-      setup.sections[i].runs[j]?.args?.forEach(arg => {
-        if (arg.name === 'Command line arguments') {
-          code = code.replace(/sys\.argv\[(\d+)\]/g, (match, p1) => {
-            return arg.value.split(' ')[p1 - 1]
-          })
-        }
-      })
+
+      if (setup.sections[i].runs[j]?.args?.filter(arg => arg.name === 'Command line arguments').length > 0) {
+        pyodide = await loadPython(setup.sections[i].runs[j]?.args.filter(arg => arg.name === 'Command line arguments'))
+      }
 
       code = runDependencies(code)
 
@@ -136,23 +138,23 @@ async function python (setup, params) {
       const files = []
 
       const newCode = oldCode
-        .replace(/from\s+(.*?)\s+import\s+\w+/g, (_, x) => {
+        ?.join(/from\s+(.*?)\s+import\s+\w+/g, (_, x) => {
           if ({ ...params, ...otherFiles }[x.trim() + '.py'] !== undefined) {
             files.push(x)
             return ''
           }
           return _
         })
-        .replace(/import\s+([^\n]+)/g, (_, imports) =>
-          'import ' + imports.split(',').map(item => (item.trim())).filter(item => {
+        ?.replace(/import\s+([^\n]+)/g, (_, imports) =>
+          'import ' + imports?.split(',').map(item => (item.trim())).filter(item => {
             if ({ ...params, ...otherFiles }[item + '.py'] !== undefined) {
               files.push(item)
               return false // Remove from final string
             }
             return true // Keep if not in arr1 or arr2
-          }).join(', ')
+          })?.join(', ')
         )
-        .replace(/\b(\w+)\.(\w+)\b/g, (_, x, y) => {
+        ?.replace(/\b(\w+)\.(\w+)\b/g, (_, x, y) => {
           if (files.includes(x)) {
             return y // Return only y if x is in the array
           }
@@ -183,7 +185,7 @@ async function python (setup, params) {
         const expectedOutput = setup.sections[i].runs[j].output
         pf = check(expectedOutput, output)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
-            <td><pre>${name.split('.')[0]}</pre></td>
+            <td><pre>${name?.split('.')[0]}</pre></td>
             <td><pre>${input}</pre></td>
             <td><pre>${output}
             </pre></td>
@@ -207,17 +209,18 @@ async function python (setup, params) {
       const inputs = setup.sections[i].runs[j].input?.split('\n') // Get the inputs
 
       try {
-        if (code.indexOf('input') !== -1) {
+        console.log(code)
+        if (code?.indexOf('input') !== -1 || code?.indexOf('input') !== undefined) {
           // Replace a user input with a computer input
           const newStr = 'next(inputs)'
           let newCode = `inputs = iter([${inputs}])\n${code}`
-          code.match(/input\((.*?)\)/g).forEach(str => {
-            const index = newCode.indexOf('\n', newCode.indexOf(str) + str.length)
-            const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
-            newCode = newCode.slice(0, index) +
-                      `${newCode.slice(index).match(/^\s*/)[0]}print(f"${str.slice(7, -2)}{${variable}}")` +
-                      newCode.slice(index) // Print the input question and inputed value
-            newCode = newCode.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
+          code?.match(/input\((.*?)\)/g).forEach(str => {
+            const index = newCode?.indexOf('\n', newCode?.indexOf(str) + str.length)
+            const variable = newCode?.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
+            newCode = newCode?.slice(0, index) +
+                      `${newCode?.slice(index)?.match(/^\s*/)[0]}print(f"${str?.slice(7, -2)}{${variable}}")` +
+                      newCode?.slice(index) // Print the input question and inputed value
+            newCode = newCode?.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
           })
 
           pyodide.runPython(newCode) // Run each testcase
@@ -248,7 +251,7 @@ async function python (setup, params) {
       <table class="run">
       <tr><th>&#160;</th><th>Name</th>`
 
-      args = setup.sections[i].runs[i].args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
+      args = setup.sections[i].runs[j].args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
 
       for (arg of args) {
         str1 += `<th>${arg.name}</th>`
@@ -260,14 +263,14 @@ async function python (setup, params) {
         let newCode = code // Copy the code
         // Replace the variables with their new values
         for (arg of args) {
-          newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
+          newCode = newCode?.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
         }
         pyodide.runPython(newCode) // Run each testcase
         const output = getOutput().output
         const expectedOutput = setup.sections[i].runs[j].output
         pf = check(expectedOutput, output)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
-            <td><pre>${name.split('.')[0]}</pre></td>`
+            <td><pre>${name?.split('.')[0]}</pre></td>`
         for (arg of args) {
           report += `<td><pre>${arg.value}</pre></td>`
         }
@@ -286,8 +289,8 @@ async function python (setup, params) {
       try {
         initialize(code)
         runDependents(true)
-        total = (setup.sections[i].runs[j].output.split('\n')[0].match(/\./g) || []).length
-        correct = total - (getOutput().err.split('\n')[0].match(/F/g) || []).length
+        total = (setup.sections[i].runs[j].output?.split('\n')[0]?.match(/\./g) || []).length
+        correct = total - (getOutput().err?.split('\n')[0]?.match(/F/g) || []).length
         pf = correct === total ? 'pass' : 'fail'
       } catch (err) {
         setText(err, OUTPUT)
@@ -305,8 +308,8 @@ async function python (setup, params) {
         initialize(code)
         runDependents()
         let HTMLoutput = '<pre class=\'output\'>'
-        const expectedOutputs = setup.sections[i].runs[j].output.split('\n').filter(n => n)
-        const outputs = getOutput().output.split('\n')
+        const expectedOutputs = setup.sections[i].runs[j].output?.split('\n').filter(n => n)
+        const outputs = getOutput().output?.split('\n')
         for (let k = 0; k < expectedOutputs.length; k++) {
           pf = check(expectedOutputs[k], outputs[k])
           HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
@@ -344,7 +347,7 @@ async function python (setup, params) {
       stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
       if (output === '' && err === '') return OUTPUT.value
-      addText(`${output}\n${err}`, OUTPUT)
+      addText(`\n${output}\n${err}`, OUTPUT)
       return { output, err }
     }
 
@@ -357,8 +360,8 @@ async function python (setup, params) {
         expectedOutput = expectedOutput.toLowerCase()
       }
       if (setup?.attributes?.ignorespace === true) {
-        output = output.replace(/\s+/g, '') // Equivlent to normalizeWS from java
-        expectedOutput = expectedOutput.replace(/\s+/g, '')
+        output = output?.replace(/\s+/g, '') // Equivlent to normalizeWS from java
+        expectedOutput = expectedOutput?.replace(/\s+/g, '')
       }
       if (Number.isFinite(Number(output))) {
         output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
@@ -375,7 +378,7 @@ async function python (setup, params) {
       // Run any other needed files
       if (Object.keys(otherFiles).length === 0) return
 
-      const fileName = name.replace('.py', '') // Get the user's file's name
+      const fileName = name?.replace('.py', '') // Get the user's file's name
 
       // Remove any importing of the user's file because it's functions were initialized
       for (file of Object.values(otherFiles)) {
@@ -385,13 +388,13 @@ async function python (setup, params) {
           break
         }
         if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(file) &&
-            !(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(file)) continue
+            !(new RegExp(`^(import\\s+.*?)\\b${fileName?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(file)) continue
         let newCode = file
-          .replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
-          .replace(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
-            p1.replace(new RegExp(`\\b${fileName}\\b`), '').replace(/,\s*$/, '')
+          ?.replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
+          ?.replace(new RegExp(`^(import\\s+.*?)\\b${fileName?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
+            p1?.replace(new RegExp(`\\b${fileName}\\b`), '')?.replace(/,\s*$/, '')
           )
-          .replace(new RegExp(`\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
+          ?.replace(new RegExp(`\\b${fileName?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
         newCode += unitTest ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : ''
         newCode = runDependencies(newCode)
         pyodide.runPython(newCode)
