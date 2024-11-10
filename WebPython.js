@@ -36,10 +36,9 @@ window.addEventListener('load', async () => {
 
   // Load Pyodide
   pyodide = await loadPyodide({
-    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/', // Make sure this is the correct version of pyodide
-    stdout: (msg) => { addText(`Pyodide: ${msg}\n`, OUTPUT) },
-    stderr: (msg) => { addText(`${msg}\n`, OUTPUT) } // Unit Test raise the output as warning, so this redirects them to the output
+    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/' // Make sure this is the correct version of pyodide
   })
+
   // Capture the Pyodide output
   try {
     pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
@@ -106,23 +105,8 @@ async function python (setup, params) {
 
       code = runDependencies(code)
 
-      switch (setup.sections[i].type) { // TODO: work file system
-        case 'call':
-          call()
-          break
-        case 'run':
-          run()
-          break
-        case 'sub':
-          sub()
-          break
-        case 'unitTest':
-          unitTest()
-          break
-        case 'tester':
-          tester()
-          break
-      }
+      const functions = { call, run, sub, unitTest, tester } // TODO: work file system
+      functions[setup.sections[i].type]?.() ?? console.error('Function not found')
     }
 
     function checkRequiredForbidden (file) {
@@ -211,6 +195,7 @@ async function python (setup, params) {
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
+      return true
     }
 
     function run () {
@@ -254,6 +239,7 @@ async function python (setup, params) {
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
+      return true
     }
 
     function sub () {
@@ -291,6 +277,7 @@ async function python (setup, params) {
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
+      return true
     }
 
     function unitTest () {
@@ -307,6 +294,7 @@ async function python (setup, params) {
       }
 
       report += `<span class=${pf}>${pf}</span>`
+      return true
     }
 
     function tester () {
@@ -329,11 +317,11 @@ async function python (setup, params) {
       } catch (err) {
         setText(err, OUTPUT)
       }
+      return true
     }
 
     // Function to initialize the code
     function initialize (input) {
-      console.log(`running:\n${input}`)
       try {
         pyodide.runPython(input) // Run python
       } catch (err) {
