@@ -138,7 +138,7 @@ async function python (setup, params) {
       const files = []
 
       const newCode = oldCode
-        ?.join(/from\s+(.*?)\s+import\s+\w+/g, (_, x) => {
+        ?.replace(/from\s+(.*?)\s+import\s+\w+/g, (_, x) => {
           if ({ ...params, ...otherFiles }[x.trim() + '.py'] !== undefined) {
             files.push(x)
             return ''
@@ -161,7 +161,7 @@ async function python (setup, params) {
           return _ // Keep x.y if x is not in the array
         })
 
-      files.forEach(file => {
+      files?.forEach(file => {
         initialize(runDependencies(params[file + '.py'] ?? otherFiles?.[file + '.py']))
       })
 
@@ -209,12 +209,11 @@ async function python (setup, params) {
       const inputs = setup.sections[i].runs[j].input?.split('\n') // Get the inputs
 
       try {
-        console.log(code)
         if (code?.indexOf('input') !== -1 || code?.indexOf('input') !== undefined) {
           // Replace a user input with a computer input
           const newStr = 'next(inputs)'
           let newCode = `inputs = iter([${inputs}])\n${code}`
-          code?.match(/input\((.*?)\)/g).forEach(str => {
+          code?.match(/input\((.*?)\)/g)?.forEach(str => {
             const index = newCode?.indexOf('\n', newCode?.indexOf(str) + str.length)
             const variable = newCode?.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
             newCode = newCode?.slice(0, index) +
