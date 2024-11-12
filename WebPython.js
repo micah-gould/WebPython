@@ -12,27 +12,6 @@ let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
 let OUTPUT, addText, setText, pyodide // Variables that need to be global
 
-async function loadPython (args) {
-  setText('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
-
-  const START = Date.now() // Get the current time
-  console.log()
-  // Load Pyodide
-  const py = await loadPyodide({ args: args ?? [] })
-
-  // Capture the Pyodide output
-  try {
-    py.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
-  } catch (err) {
-    setText(err, OUTPUT)
-  }
-
-  const END = Date.now() // Get the current time
-  addText(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
-
-  return py
-}
-
 window.addEventListener('load', async () => {
   function resize (area) { // Function to resize a text area
     area.style.height = 'auto' // Reset the height to recalculate the correct scroll height
@@ -52,7 +31,21 @@ window.addEventListener('load', async () => {
   document.getElementById('description').innerHTML += window.horstmann_codecheck.setup[0]?.description ?? '' // Set the description of the task
   OUTPUT = document.getElementById('output') // Get the text area for the output
 
-  pyodide = await loadPython()
+  addText('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
+
+  const START = Date.now() // Get the current time
+  // Load Pyodide
+  pyodide = await loadPyodide()
+
+  // Capture the Pyodide output
+  try {
+    pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
+  } catch (err) {
+    setText(err, OUTPUT)
+  }
+
+  const END = Date.now() // Get the current time
+  addText(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
 })
 
 // Function that process the problems
@@ -102,7 +95,9 @@ async function python (setup, params) {
       }
 
       if (setup.sections[i].runs[j]?.args?.filter(arg => arg.name === 'Command line arguments').length > 0) {
-        pyodide = await loadPython(setup.sections[i].runs[j]?.args.filter(arg => arg.name === 'Command line arguments'))
+        const args = setup.sections[i].runs[j].args.filter(arg => arg.name === 'Command line arguments')?.map(arg => arg?.value?.split(' '))?.flat()
+        args?.unshift(name)
+        pyodide.runPython(`sys.argv = ${pyodide.toPy(args)}`)
       }
 
       code = runDependencies(code)
@@ -209,7 +204,7 @@ async function python (setup, params) {
       const inputs = setup.sections[i].runs[j].input?.split('\n') // Get the inputs
 
       try {
-        if (code?.indexOf('input') !== -1 || code?.indexOf('input') !== undefined) {
+        if (code.indexOf('input') !== -1) {
           // Replace a user input with a computer input
           const newStr = 'next(inputs)'
           let newCode = `inputs = iter([${inputs}])\n${code}`
@@ -227,7 +222,7 @@ async function python (setup, params) {
           initialize(code) // Run each testcase
         }
         runDependents()
-        const outputs = getOutput().output
+        const outputs = getOutput().output ?? getOutput()
         const expectedOutputs = setup.sections[i].runs[j].output
         pf = check(expectedOutputs, outputs)
         report += `<tr><td><span class=${pf}>${pf}</span></td>
@@ -237,7 +232,7 @@ async function python (setup, params) {
             </pre></td>
             </tr>\n`
       } catch (err) {
-        setText(err, OUTPUT)
+        setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
@@ -325,9 +320,9 @@ async function python (setup, params) {
     // Function to initialize the code
     function initialize (input) {
       try {
-        pyodide.runPython(input) // Run python
+        pyodide.runPython(input) // Run each testcase
       } catch (err) {
-        setText(err, OUTPUT)
+        setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
     }
 
@@ -366,7 +361,7 @@ async function python (setup, params) {
         output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
         expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
       }
-      if (expectedOutput !== output) { // Check if output was correct
+      if (expectedOutput.trim() !== output.trim()) { // Check if output was correct
         return 'fail'
       }
       correct += weight
