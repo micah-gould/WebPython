@@ -40,7 +40,7 @@ window.addEventListener('load', async () => {
   try {
     pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
   } catch (err) {
-    setText(err, OUTPUT)
+    setText(`${err}\n${getOutput().err}`, OUTPUT)
   }
 
   const END = Date.now() // Get the current time
@@ -187,7 +187,7 @@ async function python (setup, params) {
             </pre></td>
             </tr>\n`
       } catch (err) {
-        setText(err, OUTPUT)
+        setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
@@ -269,7 +269,7 @@ async function python (setup, params) {
         }
         report += `<td><pre>${output}\n</pre></td>\n<td><pre>${expectedOutput}\n</pre></td>\n</tr>\n`
       } catch (err) {
-        setText(err, OUTPUT)
+        setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
@@ -286,7 +286,7 @@ async function python (setup, params) {
         correct = total - (getOutput().err?.split('\n')[0]?.match(/F/g) || []).length
         pf = correct === total ? 'pass' : 'fail'
       } catch (err) {
-        setText(err, OUTPUT)
+        setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
 
       report += `<span class=${pf}>${pf}</span>`
@@ -311,7 +311,7 @@ async function python (setup, params) {
         total = outputs.length / 2
         report += HTMLoutput
       } catch (err) {
-        setText(err, OUTPUT)
+        setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
       return true
     }
