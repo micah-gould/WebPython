@@ -22,7 +22,39 @@
     <div id="description"></div>
     <div class="horstmann_codecheck"></div>
     <script type="text/javascript">
-      horstmann_codecheck.setup.push(); // TODO: Work on this test case
+      horstmann_codecheck.setup.push({
+        sections: [
+          {
+            type: "run",
+            runs: [
+              {
+                input: "",
+                output: "",
+                files: [
+                  {
+                    name: "output.txt",
+                    value:
+                      "  1: Mary had a little lamb,\n  2: little lamb, little lamb,\n  3: Mary had a little lamb,\n  4: whose fleece was white as snow.\n  5: \n  6: And everywhere that Mary went,\n  7: Mary went, Mary went,\n  8: and everywhere that Mary went,\n  9: the lamb was sure to go.\n",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        requiredFiles: {
+          "linenums.py": {
+            editors: [
+              'infile = open("input.txt", "r")\noutfile = open("output.txt", "w")\n\n. . .\n\ninfile.close()\noutfile.close()\n',
+            ],
+          },
+        },
+        useFiles: {
+          "input.txt":
+            "Mary had a little lamb,\nlittle lamb, little lamb,\nMary had a little lamb,\nwhose fleece was white as snow.\n\nAnd everywhere that Mary went,\nMary went, Mary went,\nand everywhere that Mary went,\nthe lamb was sure to go.\n",
+        },
+        description:
+          "<p>Complete this program so that it prints all lines from input.txt to output.txt, preceded by line numbers. For example,</p>\n<pre>  1: In Xanadu did Kubla Khan\n  2: A stately pleasure-dome decree :\n  3: Where Alph, the sacred river, ran\n  4: Through caverns measureless to man\n  5: Down to a sunless sea. </pre>\n",
+      }); // TODO: Work on this test case
     </script>
   </body>
 </html>
