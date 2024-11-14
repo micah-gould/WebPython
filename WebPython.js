@@ -39,7 +39,9 @@ window.addEventListener('load', async () => {
   try {
     pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
   } catch (err) {
-    setText(`${err}\n${getOutput().err}`, OUTPUT)
+    if (err.type !== 'SystemExit') {
+      setText(`${err}\n${getOutput().err}`, OUTPUT)
+    }
   }
 
   const END = Date.now() // Get the current time
@@ -91,7 +93,9 @@ async function python (setup, params) {
         try {
           pyodide.FS.writeFile(filename, allFiles[filename])
         } catch (err) {
-          setText(`${err}\n${getOutput().err}`, OUTPUT)
+          if (err.type !== 'SystemExit') {
+            setText(`${err}\n${getOutput().err}`, OUTPUT)
+          }
         }
       }
 
@@ -162,7 +166,9 @@ async function python (setup, params) {
             </tr>\n`
         }
       } catch (err) {
-        setText(`${err}\n${getOutput().err}`, OUTPUT)
+        if (err.type !== 'SystemExit') {
+          setText(`${err}\n${getOutput().err}`, OUTPUT)
+        }
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
@@ -178,7 +184,7 @@ async function python (setup, params) {
       const inputs = setup.sections[i].runs[j].input?.split('\n') // Get the inputs
 
       try {
-        if (code.indexOf('input') !== -1) {
+        if ((/input\s*=/).test(code)) {
           // Replace a user input with a computer input
           const newStr = 'next(inputs)'
           let newCode = `inputs = iter([${inputs}])\n${code}`
@@ -195,7 +201,6 @@ async function python (setup, params) {
         } else {
           initialize(code) // Run each testcase
         }
-        runDependents()
 
         for (let z = 0; z < (setup.sections[i].runs[j]?.files?.length ?? 1); z++) {
           const output = (getOutput().output ?? getOutput()) || pyodide.FS.readFile(setup.sections[i].runs[j]?.files?.[z]?.name, { encoding: 'utf8' })
@@ -209,7 +214,9 @@ async function python (setup, params) {
             </tr>\n`
         }
       } catch (err) {
-        setText(`${err}\n${getOutput().err}`, OUTPUT)
+        if (err.type !== 'SystemExit') {
+          setText(`${err}\n${getOutput().err}`, OUTPUT)
+        }
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
@@ -251,7 +258,9 @@ async function python (setup, params) {
           report += `<td><pre>${output}\n</pre></td>\n<td><pre>${expectedOutput}\n</pre></td>\n</tr>\n`
         }
       } catch (err) {
-        setText(`${err}\n${getOutput().err}`, OUTPUT)
+        if (err.type !== 'SystemExit') {
+          setText(`${err}\n${getOutput().err}`, OUTPUT)
+        }
       }
 
       report += j === setup.sections[i].runs.length - 1 ? endstr : ''
@@ -272,7 +281,9 @@ async function python (setup, params) {
           pf = correct === total ? 'pass' : 'fail'
         }
       } catch (err) {
-        setText(`${err}\n${getOutput().err}`, OUTPUT)
+        if (err.type !== 'SystemExit') {
+          setText(`${err}\n${getOutput().err}`, OUTPUT)
+        }
       }
 
       report += `<span class=${pf}>${pf}</span>`
@@ -308,7 +319,9 @@ async function python (setup, params) {
       try {
         pyodide.runPython(input) // Run each testcase
       } catch (err) {
-        setText(`${err}\n${getOutput().err}`, OUTPUT)
+        if (err.type !== 'SystemExit') {
+          setText(`${err}\n${getOutput().err}`, OUTPUT)
+        }
       }
     }
 
@@ -378,7 +391,9 @@ async function python (setup, params) {
         try {
           pyodide.runPython(newCode)
         } catch (err) {
-          setText(`${err}\n${getOutput().err}`, OUTPUT)
+          if (err.type !== 'SystemExit') {
+            setText(`${err}\n${getOutput().err}`, OUTPUT)
+          }
         }
       }
     }
