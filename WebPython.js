@@ -100,6 +100,7 @@ async function python (setup, params) {
       }
 
       code = runDependencies(code)
+      loadDependencies()
 
       const functions = { call, run, sub, unitTest, tester } // TODO: work file system
       functions[setup.sections[i].type]?.() ?? console.error('Function not found')
@@ -162,6 +163,16 @@ async function python (setup, params) {
       return newCode
     }
 
+    function loadDependencies () {
+      for (const filename in otherFiles) {
+        try {
+          pyodide.FS.writeFile(filename, otherFiles[filename])
+        } catch (err) {
+          setText(`${err}\n${getOutput().err}`, OUTPUT)
+        }
+      }
+    }
+
     function call () {
       const str = `<p class="header call">Calling with Arguments</p>
       <div class="call">
@@ -177,8 +188,11 @@ async function python (setup, params) {
         pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
         const output = getOutput().output
         const expectedOutput = setup.sections[i].runs[j].output
-        pf = check(expectedOutput, output)
-        report += `<tr><td><span class=${pf}>${pf}</span></td>
+        if (setup.sections[i].runs[j]?.files?.length > 0) {
+          console.log('FILES')
+        } else {
+          pf = check(expectedOutput, output)
+          report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name?.split('.')[0]}</pre></td>
             <td><pre>${input}</pre></td>
             <td><pre>${output}
@@ -186,6 +200,7 @@ async function python (setup, params) {
             <td><pre>${expectedOutput}
             </pre></td>
             </tr>\n`
+        }
       } catch (err) {
         setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
@@ -221,15 +236,17 @@ async function python (setup, params) {
           initialize(code) // Run each testcase
         }
         runDependents()
-        const outputs = getOutput().output ?? getOutput()
-        const expectedOutputs = setup.sections[i].runs[j].output
-        pf = check(expectedOutputs, outputs)
-        report += `<tr><td><span class=${pf}>${pf}</span></td>
-            <td><pre>${outputs}
+        for (let z = 0; z < setup.sections[i].runs[j]?.files?.length ?? 1; z++) {
+          const output = (getOutput().output ?? getOutput()) || pyodide.FS.readFile(setup.sections[i].runs[j]?.files?.[z]?.name, { encoding: 'utf8' })
+          const expectedoutput = setup.sections[i].runs[j].output || setup.sections[i].runs[j]?.files?.[z]?.value
+          pf = check(expectedoutput, output)
+          report += `<tr><td><span class=${pf}>${pf}</span></td>
+            <td><pre>${output}
             </pre></td>
-            <td><pre>${expectedOutputs}
+            <td><pre>${expectedoutput}
             </pre></td>
             </tr>\n`
+        }
       } catch (err) {
         setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
@@ -261,13 +278,17 @@ async function python (setup, params) {
         pyodide.runPython(newCode) // Run each testcase
         const output = getOutput().output
         const expectedOutput = setup.sections[i].runs[j].output
-        pf = check(expectedOutput, output)
-        report += `<tr><td><span class=${pf}>${pf}</span></td>
+        if (setup.sections[i].runs[j]?.files?.length > 0) {
+          console.log('FILES')
+        } else {
+          pf = check(expectedOutput, output)
+          report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name?.split('.')[0]}</pre></td>`
-        for (arg of args) {
-          report += `<td><pre>${arg.value}</pre></td>`
+          for (arg of args) {
+            report += `<td><pre>${arg.value}</pre></td>`
+          }
+          report += `<td><pre>${output}\n</pre></td>\n<td><pre>${expectedOutput}\n</pre></td>\n</tr>\n`
         }
-        report += `<td><pre>${output}\n</pre></td>\n<td><pre>${expectedOutput}\n</pre></td>\n</tr>\n`
       } catch (err) {
         setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
@@ -284,7 +305,11 @@ async function python (setup, params) {
         runDependents(true)
         total = (setup.sections[i].runs[j].output?.split('\n')[0]?.match(/\./g) || []).length
         correct = total - (getOutput().err?.split('\n')[0]?.match(/F/g) || []).length
-        pf = correct === total ? 'pass' : 'fail'
+        if (setup.sections[i].runs[j]?.files?.length > 0) {
+          console.log('FILES')
+        } else {
+          pf = correct === total ? 'pass' : 'fail'
+        }
       } catch (err) {
         setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
@@ -304,9 +329,13 @@ async function python (setup, params) {
         const expectedOutputs = setup.sections[i].runs[j].output?.split('\n').filter(n => n)
         const outputs = getOutput().output?.split('\n')
         for (let k = 0; k < expectedOutputs.length; k++) {
-          pf = check(expectedOutputs[k], outputs[k])
-          HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
-          report += `<span class=${pf}>${pf}</span> `
+          if (setup.sections[i].runs[j]?.files?.length > 0) {
+            console.log('FILES')
+          } else {
+            pf = check(expectedOutputs[k], outputs[k])
+            HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
+            report += `<span class=${pf}>${pf}</span> `
+          }
         }
         total = outputs.length / 2
         report += HTMLoutput
@@ -359,8 +388,11 @@ async function python (setup, params) {
       if (Number.isFinite(Number(output))) {
         output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
         expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
+      } else {
+        expectedOutput = expectedOutput.trim()
+        output = output.trim()
       }
-      if (expectedOutput.trim() !== output.trim()) { // Check if output was correct
+      if (expectedOutput !== output) { // Check if output was correct
         return 'fail'
       }
       correct += weight

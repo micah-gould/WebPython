@@ -29,7 +29,7 @@
           type: "run",
           runs: [
             {
-              mainclass: "linemuns.py",
+              mainclass: "linenums.py",
               input: "",
               output: "",
               files: [
@@ -46,7 +46,7 @@
       requiredFiles: {
         "linenums.py": {
           editors: [
-            'infile = open("input.txt", "r")\noutfile = open("output.txt", "w")\n\n. . .\n\ninfile.close()\noutfile.close()\n',
+            'infile = open("input.txt", "r")\noutfile = open("output.txt", "w")\n\nfor line_number, line in enumerate(infile, start=1):\n  outfile.write(f"  {line_number}: {line}")\n\ninfile.close()\noutfile.close()\n',
           ],
         },
       },
