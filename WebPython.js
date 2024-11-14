@@ -1,5 +1,4 @@
 /* TODO:
-Read about virtual file system
 Deal with timeout */
 
 /* eslint no-undef: off, no-unused-vars: off
@@ -18,7 +17,7 @@ window.addEventListener('load', async () => {
   }
 
   addText = (text, area) => { // Function to add text to a text area and resize it
-    area.value = (area.value + text).trim()
+    area.value = (area.value + text)?.trim()
     resize(area)
   }
 
@@ -27,7 +26,7 @@ window.addEventListener('load', async () => {
     resize(area)
   }
 
-  document.getElementById('description').innerHTML += window.horstmann_codecheck.setup[0]?.description ?? '' // Set the description of the task
+  document.getElementById('description').innerHTML += window.horstmann_codecheck.setup?.[0]?.description ?? '' // Set the description of the task
   OUTPUT = document.getElementById('output') // Get the text area for the output
 
   addText('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
@@ -81,11 +80,20 @@ async function python (setup, params) {
     let correct = 0
     const endstr = '</table>'
     const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) }
+    const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.')))
 
     // Iterrate over runs array
     for (j = 0; j < setup.sections[i].runs.length; j++) {
       name = setup.sections[i].runs[j].mainclass // Get the name of the file
-      code = { ...params, ...otherFiles }[name] // Get python code
+      code = allFiles[name] // Get python code
+
+      for (const filename in allFiles) {
+        try {
+          pyodide.FS.writeFile(filename, allFiles[filename])
+        } catch (err) {
+          setText(`${err}\n${getOutput().err}`, OUTPUT)
+        }
+      }
 
       const checks = checkRequiredForbidden(code)
       if (checks.result === true) {
@@ -99,10 +107,7 @@ async function python (setup, params) {
         pyodide.runPython(`sys.argv = ${pyodide.toPy(args)}`)
       }
 
-      code = runDependencies(code)
-      loadDependencies()
-
-      const functions = { call, run, sub, unitTest, tester } // TODO: work file system
+      const functions = { call, run, sub, unitTest, tester }
       functions[setup.sections[i].type]?.() ?? console.error('Function not found')
     }
 
@@ -128,51 +133,6 @@ async function python (setup, params) {
       }
     }
 
-    function runDependencies (oldCode) {
-      // Run any dependent files
-      const files = []
-
-      const newCode = oldCode
-        ?.replace(/from\s+(.*?)\s+import\s+\w+/g, (_, x) => {
-          if ({ ...params, ...otherFiles }[x.trim() + '.py'] !== undefined) {
-            files.push(x)
-            return ''
-          }
-          return _
-        })
-        ?.replace(/import\s+([^\n]+)/g, (_, imports) =>
-          'import ' + imports?.split(',').map(item => (item.trim())).filter(item => {
-            if ({ ...params, ...otherFiles }[item + '.py'] !== undefined) {
-              files.push(item)
-              return false // Remove from final string
-            }
-            return true // Keep if not in arr1 or arr2
-          })?.join(', ')
-        )
-        ?.replace(/\b(\w+)\.(\w+)\b/g, (_, x, y) => {
-          if (files.includes(x)) {
-            return y // Return only y if x is in the array
-          }
-          return _ // Keep x.y if x is not in the array
-        })
-
-      files?.forEach(file => {
-        initialize(runDependencies(params[file + '.py'] ?? otherFiles?.[file + '.py']))
-      })
-
-      return newCode
-    }
-
-    function loadDependencies () {
-      for (const filename in otherFiles) {
-        try {
-          pyodide.FS.writeFile(filename, otherFiles[filename])
-        } catch (err) {
-          setText(`${err}\n${getOutput().err}`, OUTPUT)
-        }
-      }
-    }
-
     function call () {
       const str = `<p class="header call">Calling with Arguments</p>
       <div class="call">
@@ -181,16 +141,16 @@ async function python (setup, params) {
       report += report.includes(str) ? '' : str
 
       initialize(code)
+      runDependents()
 
       const func = setup.sections[i].runs[j].caption // Get function name
       const input = setup.sections[i].runs[j].args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
       try {
         pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
-        const output = getOutput().output
-        const expectedOutput = setup.sections[i].runs[j].output
-        if (setup.sections[i].runs[j]?.files?.length > 0) {
-          console.log('FILES')
-        } else {
+
+        for (let z = 0; z < (setup.sections[i].runs[j]?.files?.length ?? 1); z++) {
+          const output = (getOutput().output ?? getOutput()) || pyodide.FS.readFile(setup.sections[i].runs[j]?.files?.[z]?.name, { encoding: 'utf8' })
+          const expectedOutput = setup.sections[i].runs[j].output || setup.sections[i].runs[j]?.files?.[z]?.value
           pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name?.split('.')[0]}</pre></td>
@@ -236,14 +196,15 @@ async function python (setup, params) {
           initialize(code) // Run each testcase
         }
         runDependents()
-        for (let z = 0; z < setup.sections[i].runs[j]?.files?.length ?? 1; z++) {
+
+        for (let z = 0; z < (setup.sections[i].runs[j]?.files?.length ?? 1); z++) {
           const output = (getOutput().output ?? getOutput()) || pyodide.FS.readFile(setup.sections[i].runs[j]?.files?.[z]?.name, { encoding: 'utf8' })
-          const expectedoutput = setup.sections[i].runs[j].output || setup.sections[i].runs[j]?.files?.[z]?.value
-          pf = check(expectedoutput, output)
+          const expectedOutput = setup.sections[i].runs[j].output || setup.sections[i].runs[j]?.files?.[z]?.value
+          pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${output}
             </pre></td>
-            <td><pre>${expectedoutput}
+            <td><pre>${expectedOutput}
             </pre></td>
             </tr>\n`
         }
@@ -276,11 +237,11 @@ async function python (setup, params) {
           newCode = newCode?.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
         }
         pyodide.runPython(newCode) // Run each testcase
-        const output = getOutput().output
-        const expectedOutput = setup.sections[i].runs[j].output
-        if (setup.sections[i].runs[j]?.files?.length > 0) {
-          console.log('FILES')
-        } else {
+        runDependents()
+
+        for (let z = 0; z < (setup.sections[i].runs[j]?.files?.length ?? 1); z++) {
+          const output = (getOutput().output ?? getOutput()) || pyodide.FS.readFile(setup.sections[i].runs[j]?.files?.[z]?.name, { encoding: 'utf8' })
+          const expectedOutput = setup.sections[i].runs[j].output || setup.sections[i].runs[j]?.files?.[z]?.value
           pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name?.split('.')[0]}</pre></td>`
@@ -306,7 +267,7 @@ async function python (setup, params) {
         total = (setup.sections[i].runs[j].output?.split('\n')[0]?.match(/\./g) || []).length
         correct = total - (getOutput().err?.split('\n')[0]?.match(/F/g) || []).length
         if (setup.sections[i].runs[j]?.files?.length > 0) {
-          console.log('FILES')
+          console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
         } else {
           pf = correct === total ? 'pass' : 'fail'
         }
@@ -322,26 +283,23 @@ async function python (setup, params) {
       const str = '<p class="header tester">Testers</p>\n<div class="run">'
       report += report.includes(str) ? '' : str
 
-      try {
-        initialize(code)
-        runDependents()
-        let HTMLoutput = '<pre class=\'output\'>'
-        const expectedOutputs = setup.sections[i].runs[j].output?.split('\n').filter(n => n)
-        const outputs = getOutput().output?.split('\n')
-        for (let k = 0; k < expectedOutputs.length; k++) {
-          if (setup.sections[i].runs[j]?.files?.length > 0) {
-            console.log('FILES')
-          } else {
-            pf = check(expectedOutputs[k], outputs[k])
-            HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
-            report += `<span class=${pf}>${pf}</span> `
-          }
+      initialize(code)
+      runDependents()
+      let HTMLoutput = '<pre class=\'output\'>'
+      const expectedOutputs = setup.sections[i].runs[j].output?.split('\n').filter(n => n)
+      const outputs = getOutput().output?.split('\n')
+      for (let k = 0; k < expectedOutputs.length; k++) {
+        if ((setup.sections[i].runs[j]?.files?.length ?? 0) > 0) {
+          console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
+        } else {
+          pf = check(expectedOutputs[k], outputs[k])
+          HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
+          report += `<span class=${pf}>${pf}</span> `
         }
-        total = outputs.length / 2
-        report += HTMLoutput
-      } catch (err) {
-        setText(`${err}\n${getOutput().err}`, OUTPUT)
       }
+      total = outputs.length / 2
+      report += HTMLoutput
+
       return true
     }
 
@@ -389,8 +347,8 @@ async function python (setup, params) {
         output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
         expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
       } else {
-        expectedOutput = expectedOutput.trim()
-        output = output.trim()
+        expectedOutput = expectedOutput?.trim()
+        output = output?.trim()
       }
       if (expectedOutput !== output) { // Check if output was correct
         return 'fail'
@@ -399,7 +357,7 @@ async function python (setup, params) {
       return 'pass'
     }
 
-    function runDependents (unitTest) {
+    function runDependents (unitTest = false) {
       // Run any other needed files
       if (Object.keys(otherFiles).length === 0) return
 
@@ -414,15 +372,14 @@ async function python (setup, params) {
         }
         if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(file) &&
             !(new RegExp(`^(import\\s+.*?)\\b${fileName?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(file)) continue
-        let newCode = file
-          ?.replace(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g'), '')
-          ?.replace(new RegExp(`^(import\\s+.*?)\\b${fileName?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm'), (match, p1, p2, p3) =>
-            p1?.replace(new RegExp(`\\b${fileName}\\b`), '')?.replace(/,\s*$/, '')
-          )
-          ?.replace(new RegExp(`\\b${fileName?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'g'), '')
-        newCode += unitTest ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : ''
-        newCode = runDependencies(newCode)
-        pyodide.runPython(newCode)
+
+        const newCode = file + (unitTest === true ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : '')
+
+        try {
+          pyodide.runPython(newCode)
+        } catch (err) {
+          setText(`${err}\n${getOutput().err}`, OUTPUT)
+        }
       }
     }
 
