@@ -1,60 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
-    <script src="horstmann_codecheck.js"></script>
-    <script src="codecheck2.js"></script>
-    <script src="util.js"></script>
-    <script src="/ace/ace.js"></script>
-    <script src="/ace/theme-kuroir.js"></script>
-    <script src="/ace/theme-chrome.js"></script>
-    <script src="WebPython.js"></script>
-    <link type="text/css" rel="stylesheet" href="WebPython.css" />
-    <link type="text/css" rel="stylesheet" href="codecheck.css" />
-    <link type="text/css" rel="stylesheet" href="horstmann_codecheck.css" />
-  </head>
 
-  <body>
-    <h4>OUTPUT</h4>
-    <textarea disabled id="output" class="text"></textarea>
-    <div id="description"></div>
-    <div class="horstmann_codecheck"></div>
-    <script type="text/javascript">
-      horstmann_codecheck.setup.push({
-        sections: [
-          {
-            type: "run",
-            runs: [
-              {
-                input: "",
-                output: "",
-                files: [
-                  {
-                    name: "output.txt",
-                    value:
-                      "  1: Mary had a little lamb,\n  2: little lamb, little lamb,\n  3: Mary had a little lamb,\n  4: whose fleece was white as snow.\n  5: \n  6: And everywhere that Mary went,\n  7: Mary went, Mary went,\n  8: and everywhere that Mary went,\n  9: the lamb was sure to go.\n",
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        requiredFiles: {
-          "linenums.py": {
-            editors: [
-              'infile = open("input.txt", "r")\noutfile = open("output.txt", "w")\n\n. . .\n\ninfile.close()\noutfile.close()\n',
-            ],
-          },
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="horstmann_codecheck.js"></script>
+  <script src="codecheck2.js"></script>
+  <script src="util.js"></script>
+  <script src="/ace/ace.js"></script>
+  <script src="/ace/theme-kuroir.js"></script>
+  <script src="/ace/theme-chrome.js"></script>
+  <script src="WebPython.js"></script>
+  <link type="text/css" rel="stylesheet" href="WebPython.css" />
+  <link type="text/css" rel="stylesheet" href="codecheck.css" />
+  <link type="text/css" rel="stylesheet" href="horstmann_codecheck.css" />
+</head>
+
+<body>
+  <h4>OUTPUT</h4>
+  <textarea disabled id="output" class="text"></textarea>
+  <div id="description"></div>
+  <div class="horstmann_codecheck"></div>
+  <script type="text/javascript">
+    horstmann_codecheck.setup.push({
+      sections: [
+        {
+          type: "run",
+          runs: [
+            {
+              mainclass: "linemuns.py",
+              input: "",
+              output: "",
+              files: [
+                {
+                  name: "output.txt",
+                  value:
+                    "  1: Mary had a little lamb,\n  2: little lamb, little lamb,\n  3: Mary had a little lamb,\n  4: whose fleece was white as snow.\n  5: \n  6: And everywhere that Mary went,\n  7: Mary went, Mary went,\n  8: and everywhere that Mary went,\n  9: the lamb was sure to go.\n",
+                },
+              ],
+            },
+          ],
         },
-        useFiles: {
-          "input.txt":
-            "Mary had a little lamb,\nlittle lamb, little lamb,\nMary had a little lamb,\nwhose fleece was white as snow.\n\nAnd everywhere that Mary went,\nMary went, Mary went,\nand everywhere that Mary went,\nthe lamb was sure to go.\n",
+      ],
+      requiredFiles: {
+        "linenums.py": {
+          editors: [
+            'infile = open("input.txt", "r")\noutfile = open("output.txt", "w")\n\n. . .\n\ninfile.close()\noutfile.close()\n',
+          ],
         },
-        description:
-          "<p>Complete this program so that it prints all lines from input.txt to output.txt, preceded by line numbers. For example,</p>\n<pre>  1: In Xanadu did Kubla Khan\n  2: A stately pleasure-dome decree :\n  3: Where Alph, the sacred river, ran\n  4: Through caverns measureless to man\n  5: Down to a sunless sea. </pre>\n",
-      }); // TODO: Work on this test case
-    </script>
-  </body>
+      },
+      useFiles: {
+        "input.txt":
+          "Mary had a little lamb,\nlittle lamb, little lamb,\nMary had a little lamb,\nwhose fleece was white as snow.\n\nAnd everywhere that Mary went,\nMary went, Mary went,\nand everywhere that Mary went,\nthe lamb was sure to go.\n",
+      },
+      description:
+        "<p>Complete this program so that it prints all lines from input.txt to output.txt, preceded by line numbers. For example,</p>\n<pre>  1: In Xanadu did Kubla Khan\n  2: A stately pleasure-dome decree :\n  3: Where Alph, the sacred river, ran\n  4: Through caverns measureless to man\n  5: Down to a sunless sea. </pre>\n",
+    }); // TODO: Work on this test case
+  </script>
+</body>
+
 </html>
