@@ -1,8 +1,7 @@
-define("ace/theme/kuroir",["require","exports","module","ace/lib/dom"], function(require, exports, module) {
-
-exports.isDark = false;
-exports.cssClass = "ace-kuroir";
-exports.cssText = "\
+define('ace/theme/kuroir', ['require', 'exports', 'module', 'ace/lib/dom'], function (require, exports, module) {
+  exports.isDark = false
+exports.cssClass = 'ace-kuroir';
+  exports.cssText = '\
 .ace-kuroir .ace_gutter {\
 background: #F3F3F4;\
 color: #333;\
@@ -57,15 +56,15 @@ color:#FD1732;\
 background-color:#E8E9E8;}.ace-kuroir .ace_string{color:#00615a;}.ace-kuroir .ace_string.ace_regexp{color:#417E00;\
 background-color:#C9D4BE;}.ace-kuroir .ace_comment{color:#0054a8;}.ace-kuroir .ace_variable{color:#009ACD;}.ace-kuroir .ace_meta.ace_tag{color:#005273;}.ace-kuroir .ace_markup.ace_heading{color:#B8012D;\
 background-color:rgba(191, 97, 51, 0.051);}.ace-kuroir .ace_markup.ace_list{color:#8F5B26;}\
-";
+';
 
-var dom = require("../lib/dom");
-dom.importCssString(exports.cssText, exports.cssClass);
-});                (function() {
-                    window.require(["ace/theme/kuroir"], function(m) {
-                        if (typeof module == "object" && typeof exports == "object" && module) {
-                            module.exports = m;
+  let dom = require('../lib/dom')
+dom.importCssString(exports.cssText, exports.cssClass)
+}); (function () {
+  window.require(['ace/theme/kuroir'], function (m) {
+    if (typeof module === 'object' && typeof exports === 'object' && module) {
+      module.exports = m
                         }
-                    });
-                })();
-            
+  })
+                })()
+
