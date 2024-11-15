@@ -165,7 +165,7 @@ async function python (setup, params) {
 
           const expectedOutput = setup.sections[i].runs[j].output ||
                               filesAndImages[z]?.value ||
-                              new Uint8Array(atob(filesAndImages[z]?.data).split('').map(c => c.charCodeAt(0)))
+                              new Uint8Array(Array.from(atob(filesAndImages[z]?.data), c => c.charCodeAt(0)))
 
           pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
@@ -226,7 +226,7 @@ async function python (setup, params) {
 
           const expectedOutput = setup.sections[i].runs[j].output ||
                               filesAndImages[z]?.value ||
-                              new Uint8Array(atob(filesAndImages[z]?.data).split('').map(c => c.charCodeAt(0)))
+                              new Uint8Array(Array.from(atob(filesAndImages[z]?.data), c => c.charCodeAt(0)))
 
           pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
@@ -280,7 +280,7 @@ async function python (setup, params) {
 
           const expectedOutput = setup.sections[i].runs[j].output ||
                               filesAndImages[z]?.value ||
-                              new Uint8Array(atob(filesAndImages[z]?.data).split('').map(c => c.charCodeAt(0)))
+                              new Uint8Array(Array.from(atob(filesAndImages[z]?.data), c => c.charCodeAt(0)))
 
           pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
