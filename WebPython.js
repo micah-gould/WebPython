@@ -38,6 +38,7 @@ window.addEventListener('load', async () => {
   // Capture the Pyodide output
   try {
     pyodide.runPython('import sys\nimport io\nsys.stdout = io.StringIO()\nsys.stderr = io.StringIO()')
+    await pyodide.loadPackage('pillow')
   } catch (err) {
     if (err.type !== 'SystemExit') {
       setText(`${err}\n${getOutput().err}`, OUTPUT)
@@ -90,8 +91,9 @@ async function python (setup, params) {
       code = allFiles[name] // Get python code
 
       for (const filename in allFiles) {
+        const input = ['gif', 'png'].includes(filename.split('.')[1]) ? new Uint8Array(Array.from(atob(allFiles[filename].data), c => c.charCodeAt(0))) : allFiles[filename]
         try {
-          pyodide.FS.writeFile(filename, allFiles[filename])
+          pyodide.FS.writeFile(filename, input)
         } catch (err) {
           if (err.type !== 'SystemExit') {
             setText(`${err}\n${getOutput().err}`, OUTPUT)
@@ -152,9 +154,19 @@ async function python (setup, params) {
       try {
         pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
 
-        for (let z = 0; z < (setup.sections[i].runs[j]?.files?.length ?? 1); z++) {
-          const output = (getOutput().output ?? getOutput()) || pyodide.FS.readFile(setup.sections[i].runs[j]?.files?.[z]?.name, { encoding: 'utf8' })
-          const expectedOutput = setup.sections[i].runs[j].output || setup.sections[i].runs[j]?.files?.[z]?.value
+        const filesAndImages = [...(setup.sections[i].runs[j]?.files ?? []), ...(setup.sections[i].runs[j]?.images ?? [])]
+        for (let z = 0; z < (filesAndImages?.length || 1); z++) {
+          const output = (getOutput()?.output ?? getOutput()) ||
+                        (setup.sections[i]?.runs[j]?.files?.[z]?.name && pyodide.FS.analyzePath(filesAndImages[z].name).exists
+                          ? pyodide.FS.readFile(filesAndImages[z].name, { encoding: 'utf8' })
+                          : (pyodide.FS.analyzePath('out.png').exists
+                              ? pyodide.FS.readFile('out.png')
+                              : 'No output available'))
+
+          const expectedOutput = setup.sections[i].runs[j].output ||
+                              filesAndImages[z]?.value ||
+                              new Uint8Array(atob(filesAndImages[z]?.data).split('').map(c => c.charCodeAt(0)))
+
           pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name?.split('.')[0]}</pre></td>
@@ -184,7 +196,7 @@ async function python (setup, params) {
       const inputs = setup.sections[i].runs[j].input?.split('\n') // Get the inputs
 
       try {
-        if ((/input\s*=/).test(code)) {
+        if ((/input\((.*?)\)/).test(code)) {
           // Replace a user input with a computer input
           const newStr = 'next(inputs)'
           let newCode = `inputs = iter([${inputs}])\n${code}`
@@ -201,10 +213,21 @@ async function python (setup, params) {
         } else {
           initialize(code) // Run each testcase
         }
+        runDependents()
 
-        for (let z = 0; z < (setup.sections[i].runs[j]?.files?.length ?? 1); z++) {
-          const output = (getOutput().output ?? getOutput()) || pyodide.FS.readFile(setup.sections[i].runs[j]?.files?.[z]?.name, { encoding: 'utf8' })
-          const expectedOutput = setup.sections[i].runs[j].output || setup.sections[i].runs[j]?.files?.[z]?.value
+        const filesAndImages = [...(setup.sections[i].runs[j]?.files ?? []), ...(setup.sections[i].runs[j]?.images ?? [])]
+        for (let z = 0; z < (filesAndImages?.length || 1); z++) {
+          const output = (getOutput()?.output ?? getOutput()) ||
+                        (setup.sections[i]?.runs[j]?.files?.[z]?.name && pyodide.FS.analyzePath(filesAndImages[z].name).exists
+                          ? pyodide.FS.readFile(filesAndImages[z].name, { encoding: 'utf8' })
+                          : (pyodide.FS.analyzePath('out.png').exists
+                              ? pyodide.FS.readFile('out.png')
+                              : 'No output available'))
+
+          const expectedOutput = setup.sections[i].runs[j].output ||
+                              filesAndImages[z]?.value ||
+                              new Uint8Array(atob(filesAndImages[z]?.data).split('').map(c => c.charCodeAt(0)))
+
           pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${output}
@@ -246,9 +269,19 @@ async function python (setup, params) {
         pyodide.runPython(newCode) // Run each testcase
         runDependents()
 
-        for (let z = 0; z < (setup.sections[i].runs[j]?.files?.length ?? 1); z++) {
-          const output = (getOutput().output ?? getOutput()) || pyodide.FS.readFile(setup.sections[i].runs[j]?.files?.[z]?.name, { encoding: 'utf8' })
-          const expectedOutput = setup.sections[i].runs[j].output || setup.sections[i].runs[j]?.files?.[z]?.value
+        const filesAndImages = [...(setup.sections[i].runs[j]?.files ?? []), ...(setup.sections[i].runs[j]?.images ?? [])]
+        for (let z = 0; z < (filesAndImages?.length || 1); z++) {
+          const output = (getOutput()?.output ?? getOutput()) ||
+                        (setup.sections[i]?.runs[j]?.files?.[z]?.name && pyodide.FS.analyzePath(filesAndImages[z].name).exists
+                          ? pyodide.FS.readFile(filesAndImages[z].name, { encoding: 'utf8' })
+                          : (pyodide.FS.analyzePath('out.png').exists
+                              ? pyodide.FS.readFile('out.png')
+                              : 'No output available'))
+
+          const expectedOutput = setup.sections[i].runs[j].output ||
+                              filesAndImages[z]?.value ||
+                              new Uint8Array(atob(filesAndImages[z]?.data).split('').map(c => c.charCodeAt(0)))
+
           pf = check(expectedOutput, output)
           report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name?.split('.')[0]}</pre></td>`
@@ -346,26 +379,40 @@ async function python (setup, params) {
 
     // Function to compare the given output with the expected output and update all nessasary variables
     function check (expectedOutput, output, weight = 1) {
-      const tolerance = setup?.attributes?.tolerance ?? 0.000001
       total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
+
+      if (output instanceof Uint8Array && expectedOutput instanceof Uint8Array) {
+        if (output.length !== expectedOutput.length) return 'fail'
+        for (let a = 0; a < output.length; a++) {
+          if (output[a] !== expectedOutput[a]) return 'fail'
+        }
+        correct += weight
+        return 'pass'
+      }
+
       if (setup?.attributes?.ignorecase === true) {
         output = output.toLowerCase() // Closest JS equivlent to equalsIgnoreCase
         expectedOutput = expectedOutput.toLowerCase()
       }
+
       if (setup?.attributes?.ignorespace === true) {
         output = output?.replace(/\s+/g, '') // Equivlent to normalizeWS from java
         expectedOutput = expectedOutput?.replace(/\s+/g, '')
       }
+
       if (Number.isFinite(Number(output))) {
+        const tolerance = setup?.attributes?.tolerance ?? 0.000001
         output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
         expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
       } else {
         expectedOutput = expectedOutput?.trim()
         output = output?.trim()
       }
+
       if (expectedOutput !== output) { // Check if output was correct
         return 'fail'
       }
+
       correct += weight
       return 'pass'
     }
