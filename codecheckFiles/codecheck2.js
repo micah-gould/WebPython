@@ -1,3 +1,7 @@
+/* eslint no-unused-vars: off, no-undef: off, camelcase: off, eqeqeq: off
+    -------------
+    remove all warnings from eslint */
+
 // Uses postData from util.js
 
 window.horstmann_config = {

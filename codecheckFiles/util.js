@@ -1,3 +1,7 @@
+/* eslint brace-style: off, multiline-ternary: off, no-unused-vars: off
+    -------------
+    remove all warnings from eslint */
+
 async function postData (url = '', data = {}, timeout = 90000) {
   const response = await fetch(url, {
     method: 'POST', // *GET, POST, PUT, DELETE, etc.
