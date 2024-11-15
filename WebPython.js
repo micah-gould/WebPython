@@ -75,19 +75,21 @@ async function python (setup, params) {
   <body>`
   // Itterate over each section
   for (let i = 0; i < setup.sections.length; i++) {
+    const section = setup.sections[i]
     OUTPUT.value = '' // Clear output
 
     // Variables that are needed in every case
-    let code, pf, output, j, name
-    let total = setup.sections[i]?.runs.length
+    let code, pf, output, j, name, currentRun
+    let total = section.runs.length
     let correct = 0
     const endstr = '</table>'
     const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) }
     const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.')))
 
     // Iterrate over runs array
-    for (j = 0; j < setup.sections[i].runs.length; j++) {
-      name = setup.sections[i].runs[j].mainclass // Get the name of the file
+    for (j = 0; j < section.runs.length; j++) {
+      currentRun = section.runs[j]
+      name = currentRun.mainclass // Get the name of the file
       code = allFiles[name] // Get python code
 
       for (const filename in allFiles) {
@@ -107,36 +109,14 @@ async function python (setup, params) {
         break
       }
 
-      if (setup.sections[i].runs[j]?.args?.filter(arg => arg.name === 'Command line arguments').length > 0) {
-        const args = setup.sections[i].runs[j].args.filter(arg => arg.name === 'Command line arguments')?.map(arg => arg?.value?.split(' '))?.flat()
+      if (currentRun?.args?.filter(arg => arg.name === 'Command line arguments').length > 0) {
+        const args = currentRun.args.filter(arg => arg.name === 'Command line arguments')?.map(arg => arg?.value?.split(' '))?.flat()
         args?.unshift(name)
-        pyodide.runPython(`sys.argv = ${pyodide.toPy(args)}`)
+        runCode(`sys.argv = ${pyodide.toPy(args)}`)
       }
 
       const functions = { call, run, sub, unitTest, tester }
-      functions[setup.sections[i].type]?.() ?? console.error('Function not found')
-    }
-
-    function checkRequiredForbidden (file) {
-      let result = false
-      return {
-        message: setup.conditions?.forEach(test => {
-          if (file === params[test.path]) {
-            if (test?.forbidden === true) {
-              if (new RegExp(test.regex).test(file)) {
-                result = true
-                return test?.message
-              }
-            } else {
-              if (!new RegExp(test.regex).test(file)) {
-                result = true
-                return test?.message
-              }
-            }
-          }
-        }),
-        result
-      }
+      functions[section.type]?.() ?? console.error('Function not found')
     }
 
     function call () {
@@ -146,29 +126,18 @@ async function python (setup, params) {
       <tr><th>&#160;</th><th>Name</th><th>Arguments</th><th>Actual</th><th>Expected</th></tr>\n`
       report += report.includes(str) ? '' : str
 
-      initialize(code)
+      runCode(code)
       runDependents()
 
-      const func = setup.sections[i].runs[j].caption // Get function name
-      const input = setup.sections[i].runs[j].args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
-      try {
-        pyodide.runPython(`print(${func}(${input}))`) // Run each testcase
+      const func = currentRun.caption // Get function name
+      const input = currentRun.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
+      runCode(`print(${func}(${input}))`) // Run each testcase
 
-        const filesAndImages = [...(setup.sections[i].runs[j]?.files ?? []), ...(setup.sections[i].runs[j]?.images ?? [])]
-        for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-          const output = (getOutput()?.output ?? getOutput()) ||
-                        (setup.sections[i]?.runs[j]?.files?.[z]?.name && pyodide.FS.analyzePath(filesAndImages[z].name).exists
-                          ? pyodide.FS.readFile(filesAndImages[z].name, { encoding: 'utf8' })
-                          : (pyodide.FS.analyzePath('out.png').exists
-                              ? pyodide.FS.readFile('out.png')
-                              : 'No output available'))
-
-          const expectedOutput = setup.sections[i].runs[j].output ||
-                              filesAndImages[z]?.value ||
-                              new Uint8Array(Array.from(atob(filesAndImages[z]?.data), c => c.charCodeAt(0)))
-
-          pf = check(expectedOutput, output)
-          report += `<tr><td><span class=${pf}>${pf}</span></td>
+      const filesAndImages = [...(currentRun?.files ?? []), ...(currentRun?.images ?? [])]
+      for (let z = 0; z < (filesAndImages?.length || 1); z++) {
+        const [expectedOutput, output] = getCheckValues(filesAndImages[z], z)
+        pf = check(expectedOutput, output)
+        report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name?.split('.')[0]}</pre></td>
             <td><pre>${input}</pre></td>
             <td><pre>${output}
@@ -176,14 +145,9 @@ async function python (setup, params) {
             <td><pre>${expectedOutput}
             </pre></td>
             </tr>\n`
-        }
-      } catch (err) {
-        if (err.type !== 'SystemExit') {
-          setText(`${err}\n${getOutput().err}`, OUTPUT)
-        }
       }
 
-      report += j === setup.sections[i].runs.length - 1 ? endstr : ''
+      report += j === section.runs.length - 1 ? endstr : ''
       return true
     }
 
@@ -193,56 +157,40 @@ async function python (setup, params) {
       <tr><th>&#160;</th><th>Actual</th><th>Expected</th></tr>\n`
       report += report.includes(str) ? '' : str
 
-      const inputs = setup.sections[i].runs[j].input?.split('\n') // Get the inputs
+      const inputs = currentRun.input?.split('\n') // Get the inputs
 
-      try {
-        if ((/input\((.*?)\)/).test(code)) {
-          // Replace a user input with a computer input
-          const newStr = 'next(inputs)'
-          let newCode = `inputs = iter([${inputs}])\n${code}`
-          code?.match(/input\((.*?)\)/g)?.forEach(str => {
-            const index = newCode?.indexOf('\n', newCode?.indexOf(str) + str.length)
-            const variable = newCode?.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
-            newCode = newCode?.slice(0, index) +
+      if ((/input\((.*?)\)/).test(code)) {
+        // Replace a user input with a computer input
+        const newStr = 'next(inputs)'
+        let newCode = `inputs = iter([${inputs}])\n${code}`
+        code?.match(/input\((.*?)\)/g)?.forEach(str => {
+          const index = newCode?.indexOf('\n', newCode?.indexOf(str) + str.length)
+          const variable = newCode?.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
+          newCode = newCode?.slice(0, index) +
                       `${newCode?.slice(index)?.match(/^\s*/)[0]}print(f"${str?.slice(7, -2)}{${variable}}")` +
                       newCode?.slice(index) // Print the input question and inputed value
-            newCode = newCode?.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
-          })
+          newCode = newCode?.replace(/input\((.*?)\)/, newStr) // Switch user input to computer input
+        })
 
-          pyodide.runPython(newCode) // Run each testcase
-        } else {
-          initialize(code) // Run each testcase
-        }
-        runDependents()
+        runCode(newCode) // Run each testcase
+      } else {
+        runCode(code) // Run each testcase
+      }
+      runDependents()
 
-        const filesAndImages = [...(setup.sections[i].runs[j]?.files ?? []), ...(setup.sections[i].runs[j]?.images ?? [])]
-        for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-          const output = (getOutput()?.output ?? getOutput()) ||
-                        (setup.sections[i]?.runs[j]?.files?.[z]?.name && pyodide.FS.analyzePath(filesAndImages[z].name).exists
-                          ? pyodide.FS.readFile(filesAndImages[z].name, { encoding: 'utf8' })
-                          : (pyodide.FS.analyzePath('out.png').exists
-                              ? pyodide.FS.readFile('out.png')
-                              : 'No output available'))
-
-          const expectedOutput = setup.sections[i].runs[j].output ||
-                              filesAndImages[z]?.value ||
-                              new Uint8Array(Array.from(atob(filesAndImages[z]?.data), c => c.charCodeAt(0)))
-
-          pf = check(expectedOutput, output)
-          report += `<tr><td><span class=${pf}>${pf}</span></td>
+      const filesAndImages = [...(currentRun?.files ?? []), ...(currentRun?.images ?? [])]
+      for (let z = 0; z < (filesAndImages?.length || 1); z++) {
+        const [expectedOutput, output] = getCheckValues(filesAndImages[z], z)
+        pf = check(expectedOutput, output)
+        report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${output}
             </pre></td>
             <td><pre>${expectedOutput}
             </pre></td>
             </tr>\n`
-        }
-      } catch (err) {
-        if (err.type !== 'SystemExit') {
-          setText(`${err}\n${getOutput().err}`, OUTPUT)
-        }
       }
 
-      report += j === setup.sections[i].runs.length - 1 ? endstr : ''
+      report += j === section.runs.length - 1 ? endstr : ''
       return true
     }
 
@@ -252,71 +200,47 @@ async function python (setup, params) {
       <table class="run">
       <tr><th>&#160;</th><th>Name</th>`
 
-      args = setup.sections[i].runs[j].args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
+      args = currentRun.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
 
-      for (arg of args) {
-        str1 += `<th>${arg.name}</th>`
-      }
+      str1 += args.map(arg => `<th>${arg.name}</th>`).join('')
+
       str1 += '<th>Actual</th><th>Expected</th></tr>\n'
       report += report.includes(str1) ? '' : str1
 
-      try {
-        let newCode = code // Copy the code
-        // Replace the variables with their new values
-        for (arg of args) {
-          newCode = newCode?.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
-        }
-        pyodide.runPython(newCode) // Run each testcase
-        runDependents()
+      let newCode = code // Copy the code
+      // Replace the variables with their new values
+      for (arg of args) {
+        newCode = newCode?.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
+      }
+      runCode(newCode) // Run each testcase
+      runDependents()
 
-        const filesAndImages = [...(setup.sections[i].runs[j]?.files ?? []), ...(setup.sections[i].runs[j]?.images ?? [])]
-        for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-          const output = (getOutput()?.output ?? getOutput()) ||
-                        (setup.sections[i]?.runs[j]?.files?.[z]?.name && pyodide.FS.analyzePath(filesAndImages[z].name).exists
-                          ? pyodide.FS.readFile(filesAndImages[z].name, { encoding: 'utf8' })
-                          : (pyodide.FS.analyzePath('out.png').exists
-                              ? pyodide.FS.readFile('out.png')
-                              : 'No output available'))
-
-          const expectedOutput = setup.sections[i].runs[j].output ||
-                              filesAndImages[z]?.value ||
-                              new Uint8Array(Array.from(atob(filesAndImages[z]?.data), c => c.charCodeAt(0)))
-
-          pf = check(expectedOutput, output)
-          report += `<tr><td><span class=${pf}>${pf}</span></td>
+      const filesAndImages = [...(currentRun?.files ?? []), ...(currentRun?.images ?? [])]
+      for (let z = 0; z < (filesAndImages?.length || 1); z++) {
+        const [expectedOutput, output] = getCheckValues(filesAndImages[z], z)
+        pf = check(expectedOutput, output)
+        report += `<tr><td><span class=${pf}>${pf}</span></td>
             <td><pre>${name?.split('.')[0]}</pre></td>`
-          for (arg of args) {
-            report += `<td><pre>${arg.value}</pre></td>`
-          }
-          report += `<td><pre>${output}\n</pre></td>\n<td><pre>${expectedOutput}\n</pre></td>\n</tr>\n`
-        }
-      } catch (err) {
-        if (err.type !== 'SystemExit') {
-          setText(`${err}\n${getOutput().err}`, OUTPUT)
-        }
+        report += args.map(arg => `<td><pre>${arg.value}</pre></td>`).join('')
+        report += `<td><pre>${output}\n</pre></td>\n<td><pre>${expectedOutput}\n</pre></td>\n</tr>\n`
       }
 
-      report += j === setup.sections[i].runs.length - 1 ? endstr : ''
+      report += j === section.runs.length - 1 ? endstr : ''
       return true
     }
 
     function unitTest () {
       const str = '<p class="header unitTest">Unit Tests</p>\n<div class="run">'
       report += report.includes(str) ? '' : str
-      try {
-        initialize(code)
-        runDependents(true)
-        total = (setup.sections[i].runs[j].output?.split('\n')[0]?.match(/\./g) || []).length
-        correct = total - (getOutput().err?.split('\n')[0]?.match(/F/g) || []).length
-        if (setup.sections[i].runs[j]?.files?.length > 0) {
-          console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
-        } else {
-          pf = correct === total ? 'pass' : 'fail'
-        }
-      } catch (err) {
-        if (err.type !== 'SystemExit') {
-          setText(`${err}\n${getOutput().err}`, OUTPUT)
-        }
+
+      runCode(code)
+      runDependents(true)
+      total = (currentRun.output?.split('\n')[0]?.match(/\./g) || []).length
+      correct = total - (getOutput().err?.split('\n')[0]?.match(/F/g) || []).length
+      if (currentRun?.files?.length > 0) {
+        console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
+      } else {
+        pf = correct === total ? 'pass' : 'fail'
       }
 
       report += `<span class=${pf}>${pf}</span>`
@@ -327,13 +251,13 @@ async function python (setup, params) {
       const str = '<p class="header tester">Testers</p>\n<div class="run">'
       report += report.includes(str) ? '' : str
 
-      initialize(code)
+      runCode(code)
       runDependents()
       let HTMLoutput = '<pre class=\'output\'>'
-      const expectedOutputs = setup.sections[i].runs[j].output?.split('\n').filter(n => n)
+      const expectedOutputs = currentRun.output?.split('\n').filter(n => n)
       const outputs = getOutput().output?.split('\n')
       for (let k = 0; k < expectedOutputs.length; k++) {
-        if ((setup.sections[i].runs[j]?.files?.length ?? 0) > 0) {
+        if ((currentRun?.files?.length ?? 0) > 0) {
           console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
         } else {
           pf = check(expectedOutputs[k], outputs[k])
@@ -347,26 +271,27 @@ async function python (setup, params) {
       return true
     }
 
-    // Function to initialize the code
-    function initialize (input) {
-      try {
-        pyodide.runPython(input) // Run each testcase
-      } catch (err) {
-        if (err.type !== 'SystemExit') {
-          setText(`${err}\n${getOutput().err}`, OUTPUT)
-        }
-      }
+    function getCheckValues (file, z) {
+      return [currentRun.output ||
+        file?.value ||
+        new Uint8Array(Array.from(atob(file?.data), c => c.charCodeAt(0))),
+      (getOutput()?.output ?? getOutput()) ||
+        (currentRun?.files?.[z]?.name && pyodide.FS.analyzePath(file.name).exists
+          ? pyodide.FS.readFile(file.name, { encoding: 'utf8' })
+          : (pyodide.FS.analyzePath('out.png').exists
+              ? pyodide.FS.readFile('out.png')
+              : 'No output available'))]
     }
 
     // Function to get the output of the python code
     function getOutput () {
-      output = pyodide.runPython('sys.stdout.getvalue()')
+      output = runCode('sys.stdout.getvalue()')
         .split('\n')
         .slice(stdoutOLD.length, -1)
         .join('\n') // Get the new outputs
       stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
 
-      err = pyodide.runPython('sys.stderr.getvalue()')
+      err = runCode('sys.stderr.getvalue()')
         .split('\n')
         .slice(stderrOLD.length, -1)
         .join('\n') // Get the new errors
@@ -435,13 +360,7 @@ async function python (setup, params) {
 
         const newCode = file + (unitTest === true ? '\ntry:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())' : '')
 
-        try {
-          pyodide.runPython(newCode)
-        } catch (err) {
-          if (err.type !== 'SystemExit') {
-            setText(`${err}\n${getOutput().err}`, OUTPUT)
-          }
-        }
+        runCode(newCode)
       }
     }
 
@@ -455,11 +374,9 @@ async function python (setup, params) {
     <p class="header providedFiles">Provided files</p>
     <div class="providedFiles">`
     if (setup.useFiles !== undefined) {
-      for ([key, file] of Object.entries(setup.useFiles)) {
-        report += `<p class="caption">${key}:</p>
-        <pre class="output">${file}
-        </pre>`
-      }
+      report += Object.entries(setup.useFiles)
+        .map(([key, file]) => `<p class="caption">${key}:</p><pre class="output">${file}</pre>`)
+        .join('')
     }
     report += `</div>
     <p class="header score">Score</p>
@@ -468,6 +385,34 @@ async function python (setup, params) {
     </div>
     </div>`
   }
+
+  function runCode (code) {
+    try {
+      return pyodide.runPython(code)
+    } catch (err) {
+      if (err.type !== 'SystemExit') {
+        setText(`${err}\n${getOutput().err}`, OUTPUT)
+      }
+    }
+  }
+
+  function checkRequiredForbidden (file) {
+    let result = false
+    let message = null
+
+    setup.conditions?.forEach(test => {
+      if (file !== params[test.path]) return
+
+      const matches = new RegExp(test.regex).test(file)
+      if ((test?.forbidden && matches) || (!test?.forbidden && !matches)) {
+        result = true
+        message = test?.message
+      }
+    })
+
+    return { message, result }
+  }
+
   report += '</body></html>'
   return { report }
 }
