@@ -75,7 +75,7 @@ const loadFiles = async (files) => {
   for (const filename in files) {
     const file = files[filename]
     const input = ['gif', 'png'].includes(filename.split('.')[1])
-      ? new Uint8Array(Array.from(atob(file.data), c => c.charCodeAt(0)))
+      ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
       : file
     try {
       await pyodide.FS.writeFile(filename, input, { encoding: 'utf8' })
@@ -104,7 +104,7 @@ async function python (setup, params) {
   const getCheckValues = async (run, file, z) => {
     return [run.output ||
       file?.value ||
-      new Uint8Array(Array.from(atob(file?.data), c => c.charCodeAt(0))),
+      Uint8Array.from(atob(file?.data), c => c.charCodeAt(0)),
     ((await getOutput())?.output ?? (await getOutput())) ||
       (run?.files?.[z]?.name && await pyodide.FS.analyzePath(file.name).exists
         ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
