@@ -16,25 +16,25 @@ const updateTextArea = (text, area, append = true) => {
   area.style.height = `${area.scrollHeight}px`
 }
 
-const runCode = (code) => {
+const runCode = async (code) => {
   try {
-    return pyodide.runPython(code)
+    return await pyodide.runPython(code)
   } catch (err) {
     if (err.type !== 'SystemExit') {
-      updateTextArea(`${err}\n${getOutput().err}`, OUTPUT, false)
+      updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
     }
   }
 }
 
 // Function to get the output of the python code
-const getOutput = () => {
-  const output = runCode('sys.stdout.getvalue()')
+const getOutput = async () => {
+  const output = (await runCode('sys.stdout.getvalue()'))
     .split('\n')
     .slice(stdoutOLD.length, -1)
     .join('\n') // Get the new outputs
   stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
 
-  const err = runCode('sys.stderr.getvalue()')
+  const err = (await runCode('sys.stderr.getvalue()'))
     .split('\n')
     .slice(stderrOLD.length, -1)
     .join('\n') // Get the new errors
@@ -54,7 +54,7 @@ const setupPyodide = async () => {
 
   try {
     pyodide = await loadPyodide() // Load Pyodide
-    pyodide.runPython(`
+    await runCode(`
       import sys
       import io
       sys.stdout = io.StringIO()
@@ -64,7 +64,7 @@ const setupPyodide = async () => {
     updateTextArea(`\nPyodide loaded in ${Date.now() - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
   } catch (err) {
     if (err.type !== 'SystemExit') {
-      updateTextArea(`${err}\n${getOutput().err}`, OUTPUT, false)
+      updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
     }
   }
 }
@@ -76,17 +76,17 @@ window.addEventListener('load', () => {
   OUTPUT = document.getElementById('output') // Get the text area for the output
 })
 
-const loadFiles = (files) => {
+const loadFiles = async (files) => {
   for (const filename in files) {
     const file = files[filename]
     const input = ['gif', 'png'].includes(filename.split('.')[1])
       ? new Uint8Array(Array.from(atob(file.data), c => c.charCodeAt(0)))
       : file
     try {
-      pyodide.FS.writeFile(filename, input, { encoding: 'utf8' })
+      await pyodide.FS.writeFile(filename, input, { encoding: 'utf8' })
     } catch (err) {
       if (err.type !== 'SystemExit') {
-        updateTextArea(`${err}\n${getOutput().err}`, OUTPUT, false)
+        updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
       }
     }
   }
@@ -121,19 +121,19 @@ const interleave = (code, inputs) => {
 
 // Function that process the problems
 async function python (setup, params) {
-  const getCheckValues = (run, file, z) => {
+  const getCheckValues = async (run, file, z) => {
     return [run.output ||
       file?.value ||
       new Uint8Array(Array.from(atob(file?.data), c => c.charCodeAt(0))),
-    (getOutput()?.output ?? getOutput()) ||
-      (run?.files?.[z]?.name && pyodide.FS.analyzePath(file.name).exists
-        ? pyodide.FS.readFile(file.name, { encoding: 'utf8' })
-        : (pyodide.FS.analyzePath('out.png').exists
-            ? pyodide.FS.readFile('out.png')
+    ((await getOutput())?.output ?? (await getOutput())) ||
+      (run?.files?.[z]?.name && await pyodide.FS.analyzePath(file.name).exists
+        ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
+        : (await pyodide.FS.analyzePath('out.png').exists
+            ? await pyodide.FS.readFile('out.png')
             : 'No output available'))]
   }
 
-  const runDependents = (name, otherFiles) => {
+  const runDependents = async (name, otherFiles) => {
     // Run any other needed files
     if (Object.keys(otherFiles).length === 0) return
 
@@ -150,8 +150,8 @@ async function python (setup, params) {
       if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(code) &&
           !(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(code)) continue
 
-      runCode(code)
-      if (file.endsWith('Test.py')) runCode('try:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())')
+      await runCode(code)
+      if (file.endsWith('Test.py')) await runCode('try:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())')
     }
   }
 
@@ -227,19 +227,19 @@ async function python (setup, params) {
       return 'pass'
     }
 
-    const call = (code, run, name) => {
+    const call = async (code, run, name) => {
       report.newCall()
 
-      runCode(code)
-      runDependents(name, otherFiles)
+      await runCode(code)
+      await runDependents(name, otherFiles)
 
       const func = run.caption // Get function name
       const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
-      runCode(`print(${func}(${input}))`) // Run each testcase
+      await runCode(`print(${func}(${input}))`) // Run each testcase
 
       const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
       for (let z = 0; z < (run?.length || 1); z++) {
-        const [expectedOutput, output] = getCheckValues(run, filesAndImages[z], z)
+        const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
         const pf = check(expectedOutput, output)
         report.newRow()
         report.pf(pf)
@@ -252,7 +252,7 @@ async function python (setup, params) {
       return true
     }
 
-    const run = (code, run, name) => {
+    const run = async (code, run, name) => {
       report.newRun(name)
 
       const inputs = run.input?.split('\n') ?? '' // Get the inputs
@@ -264,12 +264,12 @@ async function python (setup, params) {
             : `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
         : code
 
-      runCode(code) // Run each testcase
-      runDependents(name, otherFiles)
+      await runCode(code) // Run each testcase
+      await runDependents(name, otherFiles)
 
       const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
       for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-        const [expectedOutput, output] = getCheckValues(run, filesAndImages[z], z)
+        const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
         const pf = check(expectedOutput, output)
         report.newRow()
         report.pf(pf)
@@ -280,7 +280,7 @@ async function python (setup, params) {
       return true
     }
 
-    const sub = (code, run, name) => {
+    const sub = async (code, run, name) => {
       const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
       report.newSub(args)
 
@@ -289,12 +289,12 @@ async function python (setup, params) {
         code = code.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
       }
 
-      runCode(code) // Run each testcase
-      runDependents(name, otherFiles)
+      await runCode(code) // Run each testcase
+      await runDependents(name, otherFiles)
 
       const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
       for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-        const [expectedOutput, output] = getCheckValues(run, filesAndImages[z], z)
+        const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
         const pf = check(expectedOutput, output)
         report.newRow()
         report.pf(pf)
@@ -307,12 +307,12 @@ async function python (setup, params) {
       return true
     }
 
-    const unitTest = (_, run, name) => {
+    const unitTest = async (_, run, name) => {
       report.newUnitTest()
 
-      runDependents(name, otherFiles)
+      await runDependents(name, otherFiles)
       total = (run.output?.split('\n')?.[0]?.match(/\./g) || []).length
-      correct = (getOutput().err?.split('\n')?.[0]?.match(/\./g) || []).length
+      correct = ((await getOutput()).err?.split('\n')?.[0]?.match(/\./g) || []).length
       let pf
       if (run?.files?.length > 0) {
         console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
@@ -324,13 +324,13 @@ async function python (setup, params) {
       return true
     }
 
-    const tester = (_, run, name) => {
+    const tester = async (_, run, name) => {
       report.newTester()
 
-      runDependents(name, otherFiles)
+      await runDependents(name, otherFiles)
       let HTMLoutput = '<pre class=\'output\'>'
       const expectedOutputs = run.output?.split('\n')?.filter(n => !!n)
-      const outputs = getOutput().output?.split('\n')
+      const outputs = (await getOutput()).output?.split('\n')
       for (let k = 0; k < expectedOutputs.length; k++) {
         if (run?.files?.length > 0) {
           console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
@@ -351,7 +351,7 @@ async function python (setup, params) {
       const name = currentRun.mainclass // Get the name of the file
       const code = allFiles[name] // Get python code
 
-      loadFiles(allFiles)
+      await loadFiles(allFiles)
 
       const checks = checkRequiredForbidden(code)
       if (checks.result === true) {
@@ -362,11 +362,11 @@ async function python (setup, params) {
       if (currentRun?.args?.filter(arg => arg.name === 'Command line arguments').length > 0) {
         const args = currentRun.args.filter(arg => arg.name === 'Command line arguments')?.map(arg => arg?.value?.split(' '))?.flat() ?? []
         args.unshift(name)
-        runCode(`sys.argv = ${pyodide.toPy(args)}`)
+        await runCode(`sys.argv = ${await pyodide.toPy(args)}`)
       }
 
       const functions = { call, run, sub, unitTest, tester }
-      functions[section.type]?.(code, currentRun, name) ?? console.error('Function not found')
+      await functions[section.type]?.(code, currentRun, name) ?? console.error('Function not found')
     }
 
     report.studentFiles(Object.fromEntries(Object.keys(params)
