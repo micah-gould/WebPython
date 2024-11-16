@@ -16,13 +16,17 @@ const updateTextArea = (text, area, append = true) => {
   area.style.height = `${area.scrollHeight}px`
 }
 
+const handleError = async (err) => {
+  if (err.type !== 'SystemExit') {
+    updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
+  }
+}
+
 const runCode = async (code) => {
   try {
     return await pyodide.runPython(code)
   } catch (err) {
-    if (err.type !== 'SystemExit') {
-      updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
-    }
+    await handleError(err)
   }
 }
 
@@ -63,18 +67,9 @@ const setupPyodide = async () => {
     await pyodide.loadPackage('pillow')
     updateTextArea(`\nPyodide loaded in ${Date.now() - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
   } catch (err) {
-    if (err.type !== 'SystemExit') {
-      updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
-    }
+    await handleError(err)
   }
 }
-
-window.addEventListener('load', () => {
-  document.getElementById('description').innerHTML += window.horstmann_codecheck.setup
-    .map(a => (a?.description ?? ''))
-    .join('\n') // Set the description of the task
-  OUTPUT = document.getElementById('output') // Get the text area for the output
-})
 
 const loadFiles = async (files) => {
   for (const filename in files) {
@@ -85,39 +80,24 @@ const loadFiles = async (files) => {
     try {
       await pyodide.FS.writeFile(filename, input, { encoding: 'utf8' })
     } catch (err) {
-      if (err.type !== 'SystemExit') {
-        updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
-      }
+      await handleError(err)
     }
   }
 }
 
 const interleave = (code, inputs) => {
-  const newStr = 'next(inputs)'
-  newCode = `inputs = iter([${inputs}])\n${code}`
-
-  code.match(/input\((.*?)\)/g).forEach(inputCall => {
-    // Find the index of the newline after the input call
-    const inputIndex = newCode.indexOf('\n', newCode.indexOf(inputCall) + inputCall.length)
-
-    // Extract the variable assigned to the input call
-    const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
-
-    // Extract the prompt inside the input parentheses
-    const prompt = inputCall.match(/input\((.*?)\)/)[1].replace(/^["']|["']$/g, '')
-
-    // Add a print statement to show the input question and the entered value
-    const indent = newCode.slice(inputIndex).match(/^\s*/)[0] // Get indentation
-    newCode = `${newCode.slice(0, inputIndex)}
-          ${indent}print(f"${prompt}{${variable}}")
-          ${newCode.slice(inputIndex)}`
-
-    // Replace the input call with `next(inputs)`
-    newCode = newCode.replace(/input\((.*?)\)/, newStr)
-  })
-
-  return newCode
+  return `inputs = iter([${inputs}])\n${code}`
+    .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\((.*?)\).*/g, (_, indent, variable, prompt) =>
+     `${indent}${variable} = next(inputs)${indent}print(f"${prompt.replace(/^["']|["']$/g, '')}{${variable}}")`
+    )
 }
+
+window.addEventListener('load', () => {
+  document.getElementById('description').innerHTML += window.horstmann_codecheck.setup
+    .map(a => (a?.description ?? ''))
+    .join('\n') // Set the description of the task
+  OUTPUT = document.getElementById('output') // Get the text area for the output
+})
 
 // Function that process the problems
 async function python (setup, params) {
