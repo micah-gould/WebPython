@@ -92,6 +92,33 @@ const loadFiles = (files) => {
   }
 }
 
+const interleave = (code, inputs) => {
+  const newStr = 'next(inputs)'
+  newCode = `inputs = iter([${inputs}])\n${code}`
+
+  code.match(/input\((.*?)\)/g).forEach(inputCall => {
+    // Find the index of the newline after the input call
+    const inputIndex = newCode.indexOf('\n', newCode.indexOf(inputCall) + inputCall.length)
+
+    // Extract the variable assigned to the input call
+    const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
+
+    // Extract the prompt inside the input parentheses
+    const prompt = inputCall.match(/input\((.*?)\)/)[1].replace(/^["']|["']$/g, '')
+
+    // Add a print statement to show the input question and the entered value
+    const indent = newCode.slice(inputIndex).match(/^\s*/)[0] // Get indentation
+    newCode = `${newCode.slice(0, inputIndex)}
+          ${indent}print(f"${prompt}{${variable}}")
+          ${newCode.slice(inputIndex)}`
+
+    // Replace the input call with `next(inputs)`
+    newCode = newCode.replace(/input\((.*?)\)/, newStr)
+  })
+
+  return newCode
+}
+
 // Function that process the problems
 async function python (setup, params) {
   const getCheckValues = (run, file, z) => {
@@ -146,14 +173,13 @@ async function python (setup, params) {
   }
 
   await setupPyodide()
-  OUTPUT.value = '' // Clear output
+  updateTextArea('', OUTPUT, false) // Clear output
 
   // Generic HTML for every case
   const report = new ReportBuilder()
   // Itterate over each section
   for (const section of setup.sections) {
     // Variables that are needed in every case
-    let code
     let total = section.runs.length
     let correct = 0
     const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) }
@@ -201,7 +227,7 @@ async function python (setup, params) {
       return 'pass'
     }
 
-    const call = (run, name) => {
+    const call = (code, run, name) => {
       report.newCall()
 
       runCode(code)
@@ -217,7 +243,7 @@ async function python (setup, params) {
         const pf = check(expectedOutput, output)
         report.newRow()
         report.pf(pf)
-        report.name(name.split('.')[0])
+        report.name(func)
         report.arg(input)
         report.closeRow(output, expectedOutput)
       }
@@ -226,40 +252,19 @@ async function python (setup, params) {
       return true
     }
 
-    const run = (run, name) => {
+    const run = (code, run, name) => {
       report.newRun(name)
 
       const inputs = run.input?.split('\n') ?? '' // Get the inputs
 
-      if ((/input\((.*?)\)/).test(code)) {
-        // Replace a user input with a computer input
-        const newStr = 'next(inputs)'
-        let newCode = `inputs = iter([${inputs}])\n${code}`
+      // Replace a user input with a computer input
+      code = (/input\((.*?)\)/).test(code)
+        ? (setup?.attributes?.interleave ?? true)
+            ? interleave(code, inputs)
+            : `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
+        : code
 
-        code.match(/input\((.*?)\)/g).forEach(inputCall => {
-          // Find the index of the newline after the input call
-          const inputIndex = newCode.indexOf('\n', newCode.indexOf(inputCall) + inputCall.length)
-
-          // Extract the variable assigned to the input call
-          const variable = newCode.match(/(\b\w+\b)\s*=\s*.*?\binput\(/)[1]
-
-          // Extract the prompt inside the input parentheses
-          const prompt = inputCall.match(/input\((.*?)\)/)[1].replace(/^["']|["']$/g, '')
-
-          // Add a print statement to show the input question and the entered value
-          const indent = newCode.slice(inputIndex).match(/^\s*/)[0] // Get indentation
-          newCode = `${newCode.slice(0, inputIndex)}
-          ${indent}print(f"${prompt}{${variable}}")
-          ${newCode.slice(inputIndex)}`
-
-          // Replace the input call with `next(inputs)`
-          newCode = newCode.replace(/input\((.*?)\)/, newStr)
-        })
-
-        runCode(newCode) // Run each testcase
-      } else {
-        runCode(code) // Run each testcase
-      }
+      runCode(code) // Run each testcase
       runDependents(name, otherFiles)
 
       const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
@@ -275,16 +280,16 @@ async function python (setup, params) {
       return true
     }
 
-    const sub = (run, name) => {
+    const sub = (code, run, name) => {
       const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
       report.newSub(args)
 
-      let newCode = code // Copy the code
       // Replace the variables with their new values
       for (const arg of args) {
-        newCode = newCode.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
+        code = code.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`)
       }
-      runCode(newCode) // Run each testcase
+
+      runCode(code) // Run each testcase
       runDependents(name, otherFiles)
 
       const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
@@ -302,10 +307,9 @@ async function python (setup, params) {
       return true
     }
 
-    const unitTest = (run, name) => {
+    const unitTest = (_, run, name) => {
       report.newUnitTest()
 
-      runCode(code)
       runDependents(name, otherFiles)
       total = (run.output?.split('\n')?.[0]?.match(/\./g) || []).length
       correct = (getOutput().err?.split('\n')?.[0]?.match(/\./g) || []).length
@@ -320,10 +324,9 @@ async function python (setup, params) {
       return true
     }
 
-    const tester = (run, name) => {
+    const tester = (_, run, name) => {
       report.newTester()
 
-      // runCode(code)
       runDependents(name, otherFiles)
       let HTMLoutput = '<pre class=\'output\'>'
       const expectedOutputs = run.output?.split('\n')?.filter(n => !!n)
@@ -346,7 +349,7 @@ async function python (setup, params) {
     // Iterrate over runs array
     for (const currentRun of section.runs) {
       const name = currentRun.mainclass // Get the name of the file
-      code = allFiles[name] // Get python code
+      const code = allFiles[name] // Get python code
 
       loadFiles(allFiles)
 
@@ -363,7 +366,7 @@ async function python (setup, params) {
       }
 
       const functions = { call, run, sub, unitTest, tester }
-      functions[section.type]?.(currentRun, name) ?? console.error('Function not found')
+      functions[section.type]?.(code, currentRun, name) ?? console.error('Function not found')
     }
 
     report.studentFiles(Object.fromEntries(Object.keys(params)
