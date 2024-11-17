@@ -373,4 +373,5 @@ async function python (setup, params) {
   }
 
   report.end()
-  return { report: report.value(
+  return { report: report.value() }
+}
