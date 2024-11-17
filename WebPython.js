@@ -120,8 +120,7 @@ async function python (setup, params) {
     const fileName = name.replace('.py', '') // Get the user's file's name
 
     // Remove any importing of the user's file because it's functions were initialized
-    for (const file of Object.keys(otherFiles)) {
-      const code = otherFiles[file]
+    for (const code of Object.values(otherFiles)) {
       const checks = checkRequiredForbidden(code)
       if (checks.result === true) {
         updateTextArea(checks.message ?? '', OUTPUT)
@@ -309,7 +308,7 @@ async function python (setup, params) {
 
       await runDependents(name, otherFiles)
       let HTMLoutput = '<pre class=\'output\'>'
-      const expectedOutputs = run.output?.split('\n')?.filter(n => !!n)
+      const expectedOutputs = run.output?.split('\n')?.filter(Boolean)
       const outputs = (await getOutput()).output?.split('\n')
       for (let k = 0; k < expectedOutputs.length; k++) {
         if (run?.files?.length > 0) {
