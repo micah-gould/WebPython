@@ -123,14 +123,14 @@ const check = (expectedOutput, output, attributes) => {
 }
 
 // Function that handles if the output is a string, and file, or an image
-const getCheckValues = async (run, file) => [`${run?.output.replace(/^\n+|\n+$/g, '') ?? ''}\n${file ? file?.value ?? Uint8Array.from(atob(file?.data), c => c.charCodeAt(0)) : ''}`.replace(/^\n+|\n+$/g, ''),
-  `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${(file
+const getCheckValues = async (run, file) => [file?.data !== undefined ? Uint8Array.from(atob(file?.data), c => c.charCodeAt(0)) : `${run?.output.replace(/^\n+|\n+$/g, '') ?? ''}\n${file?.value ?? ''}`.replace(/^\n+|\n+$/g, ''),
+  await pyodide.FS.analyzePath('out.png').exists
+    ? await pyodide.FS.readFile('out.png')
+    : `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${file
     ? await pyodide.FS.analyzePath(file.name).exists
       ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
-      : (await pyodide.FS.analyzePath('out.png').exists
-        ? await pyodide.FS.readFile('out.png')
-        : 'No output available')
-    : '')}`.replace(/^\n+|\n+$/g, '')]
+      : 'No output available'
+    : ''}`.replace(/^\n+|\n+$/g, '')]
 
 // Function that runs all files that call the user's file
 const runDependents = async (name, otherFiles, conditions) => {
