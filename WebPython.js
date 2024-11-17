@@ -101,6 +101,44 @@ window.addEventListener('load', () => {
 
 // Function that process the problems
 async function python (setup, params) {
+  // Function to compare the given output with the expected output and update all nessasary variables
+  const check = (expectedOutput, output) => {
+    const attributes = setup?.attributes
+
+    if (output instanceof Uint8Array && expectedOutput instanceof Uint8Array) {
+      if (output.length !== expectedOutput.length) return 'fail'
+      for (let a = 0; a < output.length; a++) {
+        if (output[a] !== expectedOutput[a]) return 'fail'
+      }
+      return 'pass'
+    }
+
+    if (attributes?.ignorecase === true) {
+      output = output.toLowerCase() // Closest JS equivlent to equalsIgnoreCase
+      expectedOutput = expectedOutput.toLowerCase()
+    }
+
+    if (attributes?.ignorespace === true) {
+      output = output.replace(/\s+/g, '') // Equivlent to normalizeWS from java
+      expectedOutput = expectedOutput.replace(/\s+/g, '')
+    }
+
+    if (Number.isFinite(Number(output))) {
+      const tolerance = attributes?.tolerance ?? 0.000001
+      output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
+      expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
+    } else {
+      expectedOutput = expectedOutput.trim()
+      output = output.trim()
+    }
+
+    if (expectedOutput !== output) { // Check if output was correct
+      return 'fail'
+    }
+
+    return 'pass'
+  }
+
   const getCheckValues = async (run, file, z) => {
     return [run.output ||
       file?.value ||
@@ -164,48 +202,6 @@ async function python (setup, params) {
     const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) }
     const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.')))
 
-    // Function to compare the given output with the expected output and update all nessasary variables
-    const check = (expectedOutput, output, weight = 1) => {
-      const attributes = setup?.attributes
-
-      total += weight - 1 // Used for the unit test to show the correct number of test, can be used if you want to weigh one input more than another
-
-      if (output instanceof Uint8Array && expectedOutput instanceof Uint8Array) {
-        if (output.length !== expectedOutput.length) return 'fail'
-        for (let a = 0; a < output.length; a++) {
-          if (output[a] !== expectedOutput[a]) return 'fail'
-        }
-        correct += weight
-        return 'pass'
-      }
-
-      if (attributes?.ignorecase === true) {
-        output = output.toLowerCase() // Closest JS equivlent to equalsIgnoreCase
-        expectedOutput = expectedOutput.toLowerCase()
-      }
-
-      if (attributes?.ignorespace === true) {
-        output = output.replace(/\s+/g, '') // Equivlent to normalizeWS from java
-        expectedOutput = expectedOutput.replace(/\s+/g, '')
-      }
-
-      if (Number.isFinite(Number(output))) {
-        const tolerance = attributes?.tolerance ?? 0.000001
-        output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
-        expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
-      } else {
-        expectedOutput = expectedOutput.trim()
-        output = output.trim()
-      }
-
-      if (expectedOutput !== output) { // Check if output was correct
-        return 'fail'
-      }
-
-      correct += weight
-      return 'pass'
-    }
-
     const call = async (code, run, name) => {
       report.newCall()
 
@@ -220,6 +216,7 @@ async function python (setup, params) {
       for (let z = 0; z < (run?.length || 1); z++) {
         const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
         const pf = check(expectedOutput, output)
+        correct += pf === 'pass' ? 1 : 0
         report.newRow()
         report.pf(pf)
         report.name(func)
@@ -250,6 +247,7 @@ async function python (setup, params) {
       for (let z = 0; z < (filesAndImages?.length || 1); z++) {
         const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
         const pf = check(expectedOutput, output)
+        correct += pf === 'pass' ? 1 : 0
         report.newRow()
         report.pf(pf)
         report.closeRow(expectedOutput, output)
@@ -275,6 +273,7 @@ async function python (setup, params) {
       for (let z = 0; z < (filesAndImages?.length || 1); z++) {
         const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
         const pf = check(expectedOutput, output)
+        correct += pf === 'pass' ? 1 : 0
         report.newRow()
         report.pf(pf)
         report.name(name.split('.')[0])
@@ -315,6 +314,7 @@ async function python (setup, params) {
           console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
         } else {
           const pf = check(expectedOutputs[k], outputs[k])
+          correct += pf === 'pass' ? 1 : 0
           report.pf(pf)
           HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
         }
