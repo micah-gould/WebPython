@@ -10,18 +10,21 @@ let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
 let OUTPUT, pyodide // Variables that need to be global
 
+// Function that updates the value of the output and resize it
 const updateTextArea = (text, area, append = true) => {
   area.value = append ? (area.value + text).trim() : text
   area.style.height = 'auto'
   area.style.height = `${area.scrollHeight}px`
 }
 
+// Function that handles all python errors
 const handleError = async (err) => {
   if (err.type !== 'SystemExit') {
     updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
   }
 }
 
+// Function that runs python code
 const runCode = async (code) => {
   try {
     return await pyodide.runPython(code)
@@ -30,7 +33,7 @@ const runCode = async (code) => {
   }
 }
 
-// Function to get the output of the python code
+// Function that gets the output of the python code
 const getOutput = async () => {
   const output = (await runCode('sys.stdout.getvalue()'))
     .split('\n')
@@ -49,6 +52,7 @@ const getOutput = async () => {
   return { output, err }
 }
 
+// Function that sets up Pyodide
 const setupPyodide = async () => {
   stdoutOLD = []
   stderrOLD = []
@@ -71,6 +75,7 @@ const setupPyodide = async () => {
   }
 }
 
+// Function that loads Pyodide file system
 const loadFiles = async (files) => {
   for (const filename in files) {
     const file = files[filename]
@@ -85,6 +90,7 @@ const loadFiles = async (files) => {
   }
 }
 
+// Function that interleaves user input and output
 const interleave = (code, inputs) => {
   return `inputs = iter([${inputs}])\n${code}`
     .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\((.*?)\).*/g, (_, indent, variable, prompt) =>
@@ -92,7 +98,7 @@ const interleave = (code, inputs) => {
     )
 }
 
-// Function to compare the given output with the expected output and update all nessasary variables
+// Function that compares the given output with the expected output and update all nessasary variables
 const check = (expectedOutput, output, attributes) => {
   if (output instanceof Uint8Array && expectedOutput instanceof Uint8Array) {
     if (output.length !== expectedOutput.length) return 'fail'
@@ -128,6 +134,7 @@ const check = (expectedOutput, output, attributes) => {
   return 'pass'
 }
 
+// Function that handles if the output is a string, and file, or an image
 const getCheckValues = async (run, file, z) => {
   return [run.output ||
     file?.value ||
@@ -140,6 +147,7 @@ const getCheckValues = async (run, file, z) => {
           : 'No output available'))]
 }
 
+// Function that runs all files that call the user's file
 const runDependents = async (name, otherFiles, conditions) => {
   // Run any other needed files
   if (Object.keys(otherFiles).length === 0) return
@@ -162,6 +170,7 @@ const runDependents = async (name, otherFiles, conditions) => {
   }
 }
 
+// Function that check is the user's code follows all the required and forbiden rules
 const checkRequiredForbidden = (file, conditions) => {
   let result = false
   let message = null
@@ -179,6 +188,7 @@ const checkRequiredForbidden = (file, conditions) => {
   return { message, result }
 }
 
+// Function that runs the "call" case
 const call = async (ins) => {
   const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
   let correct = 0
@@ -207,6 +217,7 @@ const call = async (ins) => {
   return { correct }
 }
 
+// Function that runs the "run" case
 const run = async (ins) => {
   const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
   let correct = 0
@@ -239,6 +250,7 @@ const run = async (ins) => {
   return { correct }
 }
 
+// Function that runs the "sub" case
 const sub = async (ins) => {
   const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
   let correct = 0
@@ -268,6 +280,7 @@ const sub = async (ins) => {
   return { correct }
 }
 
+// Function that runs the "unitTest" case
 const unitTest = async (ins) => {
   const { currentRun: run, name, otherFiles, conditions, report } = ins
 
@@ -287,6 +300,7 @@ const unitTest = async (ins) => {
   return { correct, total }
 }
 
+// Function that runs the "tester" case
 const tester = async (ins) => {
   const { currentRun: run, name, otherFiles, conditions, report } = ins
   let correct = 0
@@ -313,6 +327,7 @@ const tester = async (ins) => {
   return { correct, total }
 }
 
+// Code that runs when the window loads
 window.addEventListener('load', () => {
   document.getElementById('description').innerHTML += window.horstmann_codecheck.setup
     .map(a => (a?.description ?? ''))
