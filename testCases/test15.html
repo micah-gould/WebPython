@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+    <script src="../codecheckFiles/horstmann_codecheck.js"></script>
+    <script src="../codecheckFiles/codecheck2.js"></script>
+    <script src="../codecheckFiles/util.js"></script>
+    <script src="../ace/ace.js"></script>
+    <script src="../ace/theme-kuroir.js"></script>
+    <script src="../ace/theme-chrome.js"></script>
+    <script src="../WebPython.js"></script>
+    <script src="../report.js"></script>
+    <link type="text/css" rel="stylesheet" href="../WebPython.css" />
+    <link type="text/css" rel="stylesheet" href="../codecheckFiles/codecheck.css" />
+    <link type="text/css" rel="stylesheet" href="../codecheckFiles/horstmann_codecheck.css" />
+</head>
+
+<body>
+    <h4>OUTPUT</h4>
+    <textarea disabled id="output" class="text"></textarea>
+    <div id="description"></div>
+    <div class="horstmann_codecheck"></div>
+    <script type="text/javascript">
+        horstmann_codecheck.setup.push({
+            "sections": [
+                {
+                    "type": "run",
+                    "runs": [
+                        {
+                            "caption": "Test 1",
+                            "mainclass": "total2.py",
+                            "input": "input.txt\nreport.txt",
+                            "output": "Input file name: 〈input.txt〉\nOutput file name: 〈report.txt〉\n",
+                            "files": {
+                                "report.txt": "          32.00\n          54.00\n          67.50\n          29.00\n          35.00\n          80.25\n         115.00\n       --------\nTotal:   412.75\nAverage:  58.96\nMax:     115.00\nMin:      29.00\n"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "requiredFiles": {
+                "total2.py": {
+                    "editors": [`
+##SOLUTION
+##IN input.txt
+##OUT report.txt
+##
+#  This program reads a file containing numbers and writes the numbers 

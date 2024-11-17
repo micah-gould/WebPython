@@ -92,9 +92,9 @@ const loadFiles = async (files) => {
 
 // Function that interleaves user input and output
 const interleave = (code, inputs) => {
-  return `inputs = iter([${inputs}])\n${code}`
-    .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (_, indent, variable, prompt) =>
-      `${indent}${variable} = next(inputs)${indent}print(f"${prompt}〈{${variable}}〉")`
+  return `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
+    .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (match, indent, variable) =>
+      `${match}${indent}print(f"〈{${variable}}〉")`
     )
 }
 
@@ -126,16 +126,13 @@ const check = (expectedOutput, output, attributes) => {
 }
 
 // Function that handles if the output is a string, and file, or an image
-const getCheckValues = async (run, file, z) => {
-  return [run.output ||
-    file?.value ||
-    Uint8Array.from(atob(file?.data), c => c.charCodeAt(0)),
-  ((await getOutput())?.output ?? (await getOutput())) ||
-    (run?.files?.[z]?.name && await pyodide.FS.analyzePath(file.name).exists
-      ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
-      : (await pyodide.FS.analyzePath('out.png').exists
-          ? await pyodide.FS.readFile('out.png')
-          : 'No output available'))]
+const getCheckValues = async (run, file) => {
+  return [`${run?.output.trim() ?? ''}\n${file?.value ?? Uint8Array.from(atob(file?.data), c => c.charCodeAt(0))}`,
+  `${((await getOutput())?.output.trim() ?? (await getOutput()).trim())}\n${(await pyodide.FS.analyzePath(file.name).exists
+    ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
+    : (await pyodide.FS.analyzePath('out.png').exists
+      ? await pyodide.FS.readFile('out.png')
+      : 'No output available'))}`]
 }
 
 // Function that runs all files that call the user's file
@@ -183,7 +180,7 @@ const checkRequiredForbidden = (file, conditions) => {
 const processOutputs = async (run, filesAndImages, attributes, report, name, args) => {
   let correct = 0
   for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
+    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z])
     const pf = check(expectedOutput, output, attributes)
     correct += pf === 'pass' ? 1 : 0
     report.newRow()
@@ -193,6 +190,13 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
     report.closeRow(output, expectedOutput)
   }
   return correct
+}
+
+const getFilesAndImages = (files, images) => {
+  return [...Object.entries(files ?? {}).map(([title, data]) => ({
+    name: title,
+    value: data
+  })), ...images ?? []]
 }
 
 // Function that runs the "call" case
@@ -208,8 +212,7 @@ const call = async (ins) => {
   const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
   await runCode(`print(${func}(${input}))`) // Run each testcase
 
-  const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
-  correct += await processOutputs(run, filesAndImages, attributes, report, func, [input])
+  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
 
   if (end) report.closeTable()
   return { correct }
@@ -234,8 +237,7 @@ const run = async (ins) => {
   await runCode(newCode) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
-  const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
-  correct += await processOutputs(run, filesAndImages, attributes, report)
+  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
 
   if (end) report.closeTable()
   return { correct }
@@ -255,8 +257,7 @@ const sub = async (ins) => {
   await runCode(newCode) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
-  const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
-  correct += await processOutputs(run, filesAndImages, attributes, reportname.split('.')[0], args)
+  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
 
   if (end) report.closeTable()
   return { correct }
