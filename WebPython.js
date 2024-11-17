@@ -158,7 +158,8 @@ async function python (setup, params) {
     const fileName = name.replace('.py', '') // Get the user's file's name
 
     // Remove any importing of the user's file because it's functions were initialized
-    for (const code of Object.values(otherFiles)) {
+    for (const file in otherFiles) {
+      const code = otherFiles[file]
       const checks = checkRequiredForbidden(code)
       if (checks.result === true) {
         updateTextArea(checks.message ?? '', OUTPUT)
