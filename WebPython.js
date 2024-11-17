@@ -94,7 +94,7 @@ const loadFiles = async (files) => {
 const interleave = (code, inputs) => {
   return `inputs = iter([${inputs}])\n${code}`
     .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (_, indent, variable, prompt) =>
-      `${indent}${variable} = next(inputs)${indent}print(f"${prompt}{${variable}}")`
+      `${indent}${variable} = next(inputs)${indent}print(f"${prompt}〈{${variable}}〉")`
     )
 }
 
@@ -190,7 +190,7 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
     report.pf(pf)
     if (name) report.name(name)
     if (args) args.forEach(arg => report.arg(arg.value ?? arg))
-    report.closeRow(expectedOutput, output)
+    report.closeRow(output, expectedOutput)
   }
   return correct
 }
