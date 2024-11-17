@@ -93,8 +93,8 @@ const loadFiles = async (files) => {
 // Function that interleaves user input and output
 const interleave = (code, inputs) => {
   return `inputs = iter([${inputs}])\n${code}`
-    .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\((.*?)\).*/g, (_, indent, variable, prompt) =>
-      `${indent}${variable} = next(inputs)${indent}print(f"${prompt.replace(/^["']|["']$/g, '')}{${variable}}")`
+    .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (_, indent, variable, prompt) =>
+      `${indent}${variable} = next(inputs)${indent}print(f"${prompt}{${variable}}")`
     )
 }
 
@@ -188,6 +188,20 @@ const checkRequiredForbidden = (file, conditions) => {
   return { message, result }
 }
 
+// Function that processes outputs
+const processOutputs = async (run, filesAndImages, attributes, report) => {
+  let correct = 0
+  for (let z = 0; z < (filesAndImages?.length || 1); z++) {
+    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
+    const pf = check(expectedOutput, output, attributes)
+    correct += pf === 'pass' ? 1 : 0
+    report.newRow()
+    report.pf(pf)
+    report.closeRow(expectedOutput, output)
+  }
+  return correct
+}
+
 // Function that runs the "call" case
 const call = async (ins) => {
   const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
@@ -202,16 +216,7 @@ const call = async (ins) => {
   await runCode(`print(${func}(${input}))`) // Run each testcase
 
   const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
-  for (let z = 0; z < (run?.length || 1); z++) {
-    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
-    const pf = check(expectedOutput, output, attributes)
-    correct += pf === 'pass' ? 1 : 0
-    report.newRow()
-    report.pf(pf)
-    report.name(func)
-    report.arg(input)
-    report.closeRow(output, expectedOutput)
-  }
+  correct += await processOutputs(run, filesAndImages, attributes, report)
 
   if (end) report.closeTable()
   return { correct }
@@ -237,14 +242,7 @@ const run = async (ins) => {
   await runDependents(name, otherFiles, conditions)
 
   const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
-  for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
-    const pf = check(expectedOutput, output, attributes)
-    correct += pf === 'pass' ? 1 : 0
-    report.newRow()
-    report.pf(pf)
-    report.closeRow(expectedOutput, output)
-  }
+  correct += await processOutputs(run, filesAndImages, attributes, report)
 
   if (end) report.closeTable()
   return { correct }
@@ -265,16 +263,7 @@ const sub = async (ins) => {
   await runDependents(name, otherFiles, conditions)
 
   const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
-  for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
-    const pf = check(expectedOutput, output, attributes)
-    correct += pf === 'pass' ? 1 : 0
-    report.newRow()
-    report.pf(pf)
-    report.name(name.split('.')[0])
-    args.forEach(arg => report.arg(arg.value))
-    report.closeRow(output, expectedOutput)
-  }
+  correct += await processOutputs(run, filesAndImages, attributes, report)
 
   if (end) report.closeTable()
   return { correct }
