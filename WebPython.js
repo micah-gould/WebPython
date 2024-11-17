@@ -100,12 +100,11 @@ const interleave = (code, inputs) => {
 
 // Function that compares the given output with the expected output and update all nessasary variables
 const check = (expectedOutput, output, attributes) => {
-  if (output instanceof Uint8Array && expectedOutput instanceof Uint8Array) {
-    if (output.length !== expectedOutput.length) return 'fail'
-    for (let a = 0; a < output.length; a++) {
-      if (output[a] !== expectedOutput[a]) return 'fail'
-    }
-    return 'pass'
+  if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) {
+    return output.length === expectedOutput.length &&
+      output.every((val, idx) => val === expectedOutput[idx])
+      ? 'pass'
+      : 'fail'
   }
 
   if (attributes?.ignorecase === true) {
@@ -118,20 +117,12 @@ const check = (expectedOutput, output, attributes) => {
     expectedOutput = expectedOutput.replace(/\s+/g, '')
   }
 
-  if (Number.isFinite(Number(output))) {
-    const tolerance = attributes?.tolerance ?? 0.000001
-    output = Math.round(output / tolerance) * tolerance // Server uses different method but I like this better
-    expectedOutput = Math.round(expectedOutput / tolerance) * tolerance
-  } else {
-    expectedOutput = expectedOutput.trim()
-    output = output.trim()
+  if (!Number.isNaN(+expectedOutput) && !Number.isNaN(+output)) {
+    const tolerance = attributes?.tolerance || 1e-6
+    return Math.abs(+expectedOutput - +output) <= tolerance ? 'pass' : 'fail'
   }
 
-  if (expectedOutput !== output) { // Check if output was correct
-    return 'fail'
-  }
-
-  return 'pass'
+  return expectedOutput.trim() === output.trim() ? 'pass' : 'fail'
 }
 
 // Function that handles if the output is a string, and file, or an image
@@ -189,7 +180,7 @@ const checkRequiredForbidden = (file, conditions) => {
 }
 
 // Function that processes outputs
-const processOutputs = async (run, filesAndImages, attributes, report) => {
+const processOutputs = async (run, filesAndImages, attributes, report, name, args) => {
   let correct = 0
   for (let z = 0; z < (filesAndImages?.length || 1); z++) {
     const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], z)
@@ -197,6 +188,8 @@ const processOutputs = async (run, filesAndImages, attributes, report) => {
     correct += pf === 'pass' ? 1 : 0
     report.newRow()
     report.pf(pf)
+    if (name) report.name(name)
+    if (args) args.forEach(arg => report.arg(arg.value ?? arg))
     report.closeRow(expectedOutput, output)
   }
   return correct
@@ -216,7 +209,7 @@ const call = async (ins) => {
   await runCode(`print(${func}(${input}))`) // Run each testcase
 
   const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
-  correct += await processOutputs(run, filesAndImages, attributes, report)
+  correct += await processOutputs(run, filesAndImages, attributes, report, func, [input])
 
   if (end) report.closeTable()
   return { correct }
@@ -263,7 +256,7 @@ const sub = async (ins) => {
   await runDependents(name, otherFiles, conditions)
 
   const filesAndImages = [...(run?.files ?? []), ...(run?.images ?? [])]
-  correct += await processOutputs(run, filesAndImages, attributes, report)
+  correct += await processOutputs(run, filesAndImages, attributes, reportname.split('.')[0], args)
 
   if (end) report.closeTable()
   return { correct }
