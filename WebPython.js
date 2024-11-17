@@ -91,12 +91,9 @@ const loadFiles = async (files) => {
 }
 
 // Function that interleaves user input and output
-const interleave = (code, inputs) => {
-  return `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
-    .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (match, indent, variable) =>
-      `${match}${indent}print(f"〈{${variable}}〉")`
-    )
-}
+const interleave = (code, inputs) => `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
+  .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (match, indent, variable) =>
+      `${match}${indent}print(f"〈{${variable}}〉")`)
 
 // Function that compares the given output with the expected output and update all nessasary variables
 const check = (expectedOutput, output, attributes) => {
@@ -126,14 +123,14 @@ const check = (expectedOutput, output, attributes) => {
 }
 
 // Function that handles if the output is a string, and file, or an image
-const getCheckValues = async (run, file) => {
-  return [`${run?.output.trim() ?? ''}\n${file?.value ?? Uint8Array.from(atob(file?.data), c => c.charCodeAt(0))}`,
-  `${((await getOutput())?.output.trim() ?? (await getOutput()).trim())}\n${(await pyodide.FS.analyzePath(file.name).exists
-    ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
-    : (await pyodide.FS.analyzePath('out.png').exists
-      ? await pyodide.FS.readFile('out.png')
-      : 'No output available'))}`]
-}
+const getCheckValues = async (run, file) => [`${run?.output.replace(/^\n+|\n+$/g, '') ?? ''}\n${file ? file?.value ?? Uint8Array.from(atob(file?.data), c => c.charCodeAt(0)) : ''}`.replace(/^\n+|\n+$/g, ''),
+  `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${(file
+    ? await pyodide.FS.analyzePath(file.name).exists
+      ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
+      : (await pyodide.FS.analyzePath('out.png').exists
+        ? await pyodide.FS.readFile('out.png')
+        : 'No output available')
+    : '')}`.replace(/^\n+|\n+$/g, '')]
 
 // Function that runs all files that call the user's file
 const runDependents = async (name, otherFiles, conditions) => {
@@ -187,17 +184,17 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
     report.pf(pf)
     if (name) report.name(name)
     if (args) args.forEach(arg => report.arg(arg.value ?? arg))
+    console.log(output instanceof Uint8Array)
     report.closeRow(output, expectedOutput)
   }
   return correct
 }
 
-const getFilesAndImages = (files, images) => {
-  return [...Object.entries(files ?? {}).map(([title, data]) => ({
+const getFilesAndImages = (files, images) => [...Object.entries(files ?? {}).map(([title, data]) => (
+  {
     name: title,
     value: data
   })), ...images ?? []]
-}
 
 // Function that runs the "call" case
 const call = async (ins) => {
@@ -212,7 +209,7 @@ const call = async (ins) => {
   const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
   await runCode(`print(${func}(${input}))`) // Run each testcase
 
-  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
+  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, func, [input])
 
   if (end) report.closeTable()
   return { correct }
@@ -257,7 +254,7 @@ const sub = async (ins) => {
   await runCode(newCode) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
-  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
+  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, name, args)
 
   if (end) report.closeTable()
   return { correct }
