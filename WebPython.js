@@ -124,8 +124,8 @@ const check = (expectedOutput, output, attributes) => {
 
 // Function that handles if the output is a string, and file, or an image
 const getCheckValues = async (run, file) => [file?.data !== undefined ? Uint8Array.from(atob(file?.data), c => c.charCodeAt(0)) : `${run?.output.replace(/^\n+|\n+$/g, '') ?? ''}\n${file?.value ?? ''}`.replace(/^\n+|\n+$/g, ''),
-  await pyodide.FS.analyzePath('out.png').exists
-    ? await pyodide.FS.readFile('out.png')
+  await pyodide.FS.analyzePath('boxed.gif').exists
+    ? await pyodide.FS.readFile('boxed.gif')
     : `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${file
     ? await pyodide.FS.analyzePath(file.name).exists
       ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
@@ -184,7 +184,6 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
     report.pf(pf)
     if (name) report.name(name)
     if (args) args.forEach(arg => report.arg(arg.value ?? arg))
-    console.log(output instanceof Uint8Array)
     report.closeRow(output, expectedOutput)
   }
   return correct
