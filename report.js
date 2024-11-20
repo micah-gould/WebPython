@@ -143,10 +143,10 @@ class ReportBuilder {
 
   closeRow (output, expectedOutput) {
     if (output instanceof Uint8Array) {
-      output = `<img src="${URL.createObjectURL(new Blob([output], { type: 'image/png' }))}">`
+      output = `<img src="${URL.createObjectURL(new Blob([output]))}">`
     }
     if (expectedOutput instanceof Uint8Array) {
-      expectedOutput = `<img src="${URL.createObjectURL(new Blob([expectedOutput], { type: 'image/png' }))}">`
+      expectedOutput = `<img src="${URL.createObjectURL(new Blob([expectedOutput]))}">`
     }
     this.append(`</td>
         <td><pre>${output}</pre></td>

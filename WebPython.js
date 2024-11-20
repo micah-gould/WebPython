@@ -95,9 +95,25 @@ const interleave = (code, inputs) => `sys.stdin = io.StringIO("""${inputs.join('
   .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (match, indent, variable) =>
       `${match}${indent}print(f"〈{${variable}}〉")`)
 
+// Function that extractes pixel data
+const extractPixelData = async (imageBitmap) => {
+  // Create a temporary offscreen canvas
+  const offscreenCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height)
+  const ctx = offscreenCanvas.getContext('2d')
+
+  // Draw the image on the offscreen canvas
+  ctx.drawImage(imageBitmap, 0, 0)
+
+  // Get image data (pixel data)
+  const imageData = ctx.getImageData(0, 0, imageBitmap.width, imageBitmap.height)
+  return imageData.data // returns an array of RGBA values
+}
+
 // Function that compares the given output with the expected output and update all nessasary variables
-const check = (expectedOutput, output, attributes) => {
+const check = async (expectedOutput, output, attributes) => {
   if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) {
+    expectedOutput = await extractPixelData(await createImageBitmap(new Blob([expectedOutput])))
+    output = await extractPixelData(await createImageBitmap(new Blob([output])))
     return output.length === expectedOutput.length &&
       output.every((val, idx) => val === expectedOutput[idx])
       ? 'pass'
@@ -123,10 +139,12 @@ const check = (expectedOutput, output, attributes) => {
 }
 
 // Function that handles if the output is a string, and file, or an image
-const getCheckValues = async (run, file) => [file?.data !== undefined ? Uint8Array.from(atob(file?.data), c => c.charCodeAt(0)) : `${run?.output.replace(/^\n+|\n+$/g, '') ?? ''}\n${file?.value ?? ''}`.replace(/^\n+|\n+$/g, ''),
-  await pyodide.FS.analyzePath('boxed.gif').exists
-    ? await pyodide.FS.readFile('boxed.gif')
-    : `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${file
+const getCheckValues = async (run, file) => [file?.data !== undefined
+  ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
+  : `${run?.output.replace(/^\n+|\n+$/g, '') ?? ''}\n${file?.value ?? ''}`.replace(/^\n+|\n+$/g, ''),
+await pyodide.FS.analyzePath('out.png').exists // FIXME: find a way to make the file name a variable
+  ? await pyodide.FS.readFile('out.png')
+  : `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${file
     ? await pyodide.FS.analyzePath(file.name).exists
       ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
       : 'No output available'
@@ -178,7 +196,7 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
   let correct = 0
   for (let z = 0; z < (filesAndImages?.length || 1); z++) {
     const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z])
-    const pf = check(expectedOutput, output, attributes)
+    const pf = await check(expectedOutput, output, attributes)
     correct += pf === 'pass' ? 1 : 0
     report.newRow()
     report.pf(pf)
@@ -294,7 +312,7 @@ const tester = async (ins) => {
     if (run?.files?.length > 0) {
       console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
     } else {
-      const pf = check(expectedOutputs[k], outputs[k])
+      const pf = await check(expectedOutputs[k], outputs[k])
       correct += pf === 'pass' ? 1 : 0
       report.pf(pf)
       HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
