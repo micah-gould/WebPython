@@ -79,11 +79,11 @@ const setupPyodide = async () => {
 const loadFiles = async (files) => {
   for (const filename in files) {
     const file = files[filename]
-    const input = ['gif', 'png'].includes(filename.split('.')[1])
+    const input = ['gif', 'png', 'bmp'].includes(filename.split('.')[1])
       ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
       : file
     try {
-      await pyodide.FS.writeFile(filename, input, { encoding: 'utf8' })
+      await pyodide.FS.writeFile(filename, input)
     } catch (err) {
       await handleError(err)
     }
@@ -141,9 +141,9 @@ const check = async (expectedOutput, output, attributes) => {
 // Function that handles if the output is a string, and file, or an image
 const getCheckValues = async (run, file) => [file?.data !== undefined
   ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
-  : `${run?.output.replace(/^\n+|\n+$/g, '') ?? ''}\n${file?.value ?? ''}`.replace(/^\n+|\n+$/g, ''),
-await pyodide.FS.analyzePath('out.png').exists // FIXME: find a way to make the file name a variable
-  ? await pyodide.FS.readFile('out.png')
+  : `${run?.output?.replace(/^\n+|\n+$/g, '') ?? ''}\n${file?.value ?? ''}`.replace(/^\n+|\n+$/g, ''),
+await pyodide.FS.analyzePath('flipped-queen-mary.gif').exists // FIXME: find a way to make the file name a variable
+  ? await pyodide.FS.readFile('flipped-queen-mary.gif')
   : `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${file
     ? await pyodide.FS.analyzePath(file.name).exists
       ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
