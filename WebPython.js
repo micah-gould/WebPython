@@ -8,7 +8,8 @@ Deal with timeout */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
-let OUTPUT, pyodide // Variables that need to be global
+let OUTPUT, pyodide, fileNames // Variables that need to be global
+const imageEndings = ['gif', 'png', 'bmp']
 
 // Function that updates the value of the output and resize it
 const updateTextArea = (text, area, append = true) => {
@@ -79,7 +80,7 @@ const setupPyodide = async () => {
 const loadFiles = async (files) => {
   for (const filename in files) {
     const file = files[filename]
-    const input = ['gif', 'png', 'bmp'].includes(filename.split('.')[1])
+    const input = imageEndings.includes(filename.split('.')[1])
       ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
       : file
     try {
@@ -88,6 +89,7 @@ const loadFiles = async (files) => {
       await handleError(err)
     }
   }
+  fileNames = await pyodide.FS.readdir(await pyodide.FS.cwd()).filter(file => file !== '.' && file !== '..')
 }
 
 // Function that interleaves user input and output
@@ -139,11 +141,11 @@ const check = async (expectedOutput, output, attributes) => {
 }
 
 // Function that handles if the output is a string, and file, or an image
-const getCheckValues = async (run, file) => [file?.data !== undefined
+const getCheckValues = async (run, file, imageName) => [file?.data !== undefined
   ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
   : `${run?.output?.replace(/^\n+|\n+$/g, '') ?? ''}\n${file?.value ?? ''}`.replace(/^\n+|\n+$/g, ''),
-await pyodide.FS.analyzePath('flipped-queen-mary.gif').exists // FIXME: find a way to make the file name a variable
-  ? await pyodide.FS.readFile('flipped-queen-mary.gif')
+await pyodide.FS.analyzePath(imageName).exists
+  ? await pyodide.FS.readFile(imageName)
   : `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${file
     ? await pyodide.FS.analyzePath(file.name).exists
       ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
@@ -191,11 +193,18 @@ const checkRequiredForbidden = (file, conditions) => {
   return { message, result }
 }
 
+const getImageName = async () => {
+  const newFileNames = await pyodide.FS.readdir(await pyodide.FS.cwd()).filter(file => file !== '.' && file !== '..' && imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
+  const images = fileNames.filter(file => imageEndings.includes(file.split('.')[1]))
+  if (newFileNames.length > 1 || (newFileNames.length === 0 && images.length > 1)) console.error('too many files')
+  return newFileNames.length === 1 ? newFileNames[0] : images.length === 1 ? images[0] : 'noFile'
+}
+
 // Function that processes outputs
 const processOutputs = async (run, filesAndImages, attributes, report, name, args) => {
   let correct = 0
   for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z])
+    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], await getImageName())
     const pf = await check(expectedOutput, output, attributes)
     correct += pf === 'pass' ? 1 : 0
     report.newRow()
