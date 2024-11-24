@@ -57,7 +57,7 @@ const getOutput = async () => {
 const setupPyodide = async () => {
   stdoutOLD = []
   stderrOLD = []
-  updateTextArea('Pyodide loading', OUTPUT) // Inform the user that Pyodide is loading
+  updateTextArea('Pyodide loading', OUTPUT, false) // Inform the user that Pyodide is loading
 
   const START = Date.now() // Get the current time
 
@@ -74,14 +74,16 @@ const setupPyodide = async () => {
   } catch (err) {
     await handleError(err)
   }
+
+  updateTextArea('', OUTPUT, false) // Clear the output
 }
 
 // Function that loads Pyodide file system
 const loadFiles = async (files) => {
   for (const filename in files) {
-    const file = files[filename]
-    const input = imageEndings.includes(filename.split('.')[1])
-      ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
+    const file = files[filename] // Get the code/text/imageData
+    const input = imageEndings.includes(filename.split('.')[1]) // Check if the file is an image
+      ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0)) // Decode image
       : file
     try {
       await pyodide.FS.writeFile(filename, input)
@@ -193,18 +195,17 @@ const checkRequiredForbidden = (file, conditions) => {
   return { message, result }
 }
 
-const getImageName = async () => {
+const getImageName = async (z) => {
   const newFileNames = await pyodide.FS.readdir(await pyodide.FS.cwd()).filter(file => file !== '.' && file !== '..' && imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
   const images = fileNames.filter(file => imageEndings.includes(file.split('.')[1]))
-  if (newFileNames.length > 1 || (newFileNames.length === 0 && images.length > 1)) console.error('too many files')
-  return newFileNames.length === 1 ? newFileNames[0] : images.length === 1 ? images[0] : 'noFile'
+  return newFileNames.length >= z ? newFileNames[z] : images.length >= z ? images[z] : 'noFile'
 }
 
 // Function that processes outputs
 const processOutputs = async (run, filesAndImages, attributes, report, name, args) => {
   let correct = 0
-  for (let z = 0; z < (filesAndImages?.length || 1); z++) {
-    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], await getImageName())
+  for (let z = -1; z < (filesAndImages?.length ?? 0); z++) {
+    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], await getImageName(z))
     const pf = await check(expectedOutput, output, attributes)
     correct += pf === 'pass' ? 1 : 0
     report.newRow()
@@ -213,7 +214,7 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
     if (args) args.forEach(arg => report.arg(arg.value ?? arg))
     report.closeRow(output, expectedOutput)
   }
-  return correct
+  return { correct, total: (filesAndImages?.length ?? 0) }
 }
 
 const getFilesAndImages = (files, images) => [...Object.entries(files ?? {}).map(([title, data]) => (
@@ -225,7 +226,6 @@ const getFilesAndImages = (files, images) => [...Object.entries(files ?? {}).map
 // Function that runs the "call" case
 const call = async (ins) => {
   const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
-  let correct = 0
   report.newCall()
 
   await runCode(code)
@@ -235,16 +235,15 @@ const call = async (ins) => {
   const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
   await runCode(`print(${func}(${input}))`) // Run each testcase
 
-  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, func, [input])
+  const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, func, [input])
 
   if (end) report.closeTable()
-  return { correct }
+  return { correct, total }
 }
 
 // Function that runs the "run" case
 const run = async (ins) => {
   const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
-  let correct = 0
 
   report.newRun(name)
 
@@ -260,16 +259,15 @@ const run = async (ins) => {
   await runCode(newCode) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
-  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
+  const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
 
   if (end) report.closeTable()
-  return { correct }
+  return { correct, total }
 }
 
 // Function that runs the "sub" case
 const sub = async (ins) => {
   const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
-  let correct = 0
 
   const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
   report.newSub(args)
@@ -280,10 +278,10 @@ const sub = async (ins) => {
   await runCode(newCode) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
-  correct += await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, name, args)
+  const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, name, args)
 
   if (end) report.closeTable()
-  return { correct }
+  return { correct, total }
 }
 
 // Function that runs the "unitTest" case
@@ -334,47 +332,50 @@ const tester = async (ins) => {
 }
 
 // Code that runs when the window loads
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   document.getElementById('description').innerHTML += window.horstmann_codecheck.setup
     .map(a => (a?.description ?? ''))
     .join('\n') // Set the description of the task
   OUTPUT = document.getElementById('output') // Get the text area for the output
 })
 
-// Function that process the problems
+// Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
-  await setupPyodide()
-  updateTextArea('', OUTPUT, false) // Clear output
+  await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
 
-  // Generic HTML for every case
-  const report = new ReportBuilder()
+  const report = new ReportBuilder() // Create a new HTML report to return
+
   // Itterate over each section
   for (const section of setup.sections) {
     // Variables that are needed in every case
     let total = section.runs.length
     let correct = 0
-    const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) }
+    const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) } // all non-editible files
     const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.')))
+
+    await loadFiles(allFiles) // Load all files in the pyodide file system
 
     // Iterrate over runs array
     for (const currentRun of section.runs) {
-      const name = currentRun.mainclass // Get the name of the file
+      const name = currentRun.mainclass // Get the name of the file to run
       const code = allFiles[name] // Get python code
 
-      await loadFiles(allFiles)
-
-      const checks = checkRequiredForbidden(code, setup?.conditions)
+      const checks = checkRequiredForbidden(code, setup?.conditions) // Check if the user's code follows the required and forbidden riles
       if (checks.result === true) {
         updateTextArea(checks.message ?? '', OUTPUT)
         break
       }
 
-      if (currentRun?.args?.filter(arg => arg.name === 'Command line arguments').length > 0) {
-        const args = currentRun.args.filter(arg => arg.name === 'Command line arguments')?.map(arg => arg?.value?.split(' '))?.flat() ?? []
-        args.unshift(name)
-        await runCode(`sys.argv = ${await pyodide.toPy(args)}`)
-      }
+      const argv = currentRun
+        ?.args
+        ?.filter(arg => arg.name === 'Command line arguments')
+        ?.map(arg => arg?.value?.split(' '))
+        ?.flat() ?? [] // Get the command line arguments
+      argv.unshift(name) // Add the filename to the args to simulate sys.argv
 
+      await runCode(`sys.argv = ${await pyodide.toPy(argv)}`) // Update sys.argv with the correct values
+
+      // Run the correct case
       const functions = { call, run, sub, unitTest, tester }
       const { correct: newCorrect, total: newTotal } = await functions[section.type]?.({
         code,
@@ -387,7 +388,7 @@ async function python (setup, params) {
         report
       }) ?? console.error('Function not found')
       correct += newCorrect
-      total = newTotal ?? total
+      total += ['tester', 'unitTest'].includes(section.type) ? newTotal - total : newTotal
     }
     report.studentFiles(Object.fromEntries(Object.keys(params)
       .filter(file => Object.keys(setup.requiredFiles).includes(file))
