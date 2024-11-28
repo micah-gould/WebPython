@@ -115,6 +115,7 @@ const extractPixelData = async (imageBitmap) => {
 
 // Function that compares the given output with the expected output and update all nessasary variables
 const check = async (expectedOutput, output, attributes) => {
+  if (output === '') return
   if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) {
     expectedOutput = await extractPixelData(await createImageBitmap(new Blob([expectedOutput])))
     output = await extractPixelData(await createImageBitmap(new Blob([output])))
@@ -204,17 +205,20 @@ const getImageName = async (z) => {
 // Function that processes outputs
 const processOutputs = async (run, filesAndImages, attributes, report, name, args) => {
   let correct = 0
+  let total = 0
   for (let z = -1; z < (filesAndImages?.length ?? 0); z++) {
     const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], await getImageName(z))
     const pf = await check(expectedOutput, output, attributes)
+    if (pf === undefined) continue
     correct += pf === 'pass' ? 1 : 0
     report.newRow()
     report.pf(pf)
     if (name) report.name(name)
     if (args) args.forEach(arg => report.arg(arg.value ?? arg))
     report.closeRow(output, expectedOutput)
+    total++
   }
-  return { correct, total: (filesAndImages?.length ?? 0) }
+  return { correct, total }
 }
 
 const getFilesAndImages = (files, images) => [...Object.entries(files ?? {}).map(([title, data]) => (
@@ -348,7 +352,7 @@ async function python (setup, params) {
   // Itterate over each section
   for (const section of setup.sections) {
     // Variables that are needed in every case
-    let total = section.runs.length
+    let total = 0
     let correct = 0
     const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) } // all non-editible files
     const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.')))
@@ -388,7 +392,7 @@ async function python (setup, params) {
         report
       }) ?? console.error('Function not found')
       correct += newCorrect
-      total += ['tester', 'unitTest'].includes(section.type) ? newTotal - total : newTotal
+      total += newTotal
     }
     report.studentFiles(Object.fromEntries(Object.keys(params)
       .filter(file => Object.keys(setup.requiredFiles).includes(file))
