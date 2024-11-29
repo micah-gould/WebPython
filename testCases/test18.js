@@ -1,6 +1,6 @@
 /* eslint no-undef: off, camelcase: off */
 
-horstmann_codecheck.setup.push({ // FIXME: not working
+horstmann_codecheck.setup.push({
   sections: [
     {
       type: 'run',

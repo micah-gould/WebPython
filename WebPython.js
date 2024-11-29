@@ -146,14 +146,16 @@ const check = async (expectedOutput, output, attributes) => {
 // Function that handles if the output is a string, and file, or an image
 const getCheckValues = async (run, file, imageName) => [file?.data !== undefined
   ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
-  : `${run?.output?.replace(/^\n+|\n+$/g, '') ?? ''}\n${file?.value ?? ''}`.replace(/^\n+|\n+$/g, ''),
+  : (file?.name !== undefined
+      ? file?.value
+      : run?.output)?.replace(/^\n+|\n+$/g, '') ?? '',
 await pyodide.FS.analyzePath(imageName).exists
   ? await pyodide.FS.readFile(imageName)
-  : `${((await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')}\n${file
-    ? await pyodide.FS.analyzePath(file.name).exists
-      ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
-      : 'No output available'
-    : ''}`.replace(/^\n+|\n+$/g, '')]
+  : (file?.name !== undefined
+      ? await pyodide.FS.analyzePath(file.name).exists
+        ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
+        : 'No File Found'
+      : (await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')]
 
 // Function that runs all files that call the user's file
 const runDependents = async (name, otherFiles, conditions) => {
@@ -199,7 +201,7 @@ const checkRequiredForbidden = (file, conditions) => {
 const getImageName = async (z) => {
   const newFileNames = await pyodide.FS.readdir(await pyodide.FS.cwd()).filter(file => file !== '.' && file !== '..' && imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
   const images = fileNames.filter(file => imageEndings.includes(file.split('.')[1]))
-  return newFileNames.length >= z ? newFileNames[z] : images.length >= z ? images[z] : 'noFile'
+  return newFileNames.length > z ? newFileNames[z] : images.length > z ? images[z] : 'noFile'
 }
 
 // Function that processes outputs
@@ -388,7 +390,7 @@ async function python (setup, params) {
         otherFiles,
         attributes: setup?.attributes,
         conditions: setup?.conditions,
-        end: section.runs.indexOf(currentRun) === total - 1,
+        end: section.runs.indexOf(currentRun) === section.runs.length - 1,
         report
       }) ?? console.error('Function not found')
       correct += newCorrect
