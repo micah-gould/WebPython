@@ -231,7 +231,7 @@ const getFilesAndImages = (files, images) => [...Object.entries(files ?? {}).map
 
 // Function that runs the "call" case
 const call = async (ins) => {
-  const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
+  const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
   report.newCall()
 
   await runCode(code)
@@ -249,7 +249,7 @@ const call = async (ins) => {
 
 // Function that runs the "run" case
 const run = async (ins) => {
-  const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
+  const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
 
   report.newRun(name)
 
@@ -273,7 +273,7 @@ const run = async (ins) => {
 
 // Function that runs the "sub" case
 const sub = async (ins) => {
-  const { code, currentRun: run, name, otherFiles, attributes, end, conditions, report } = ins
+  const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
 
   const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
   report.newSub(args)
@@ -292,7 +292,7 @@ const sub = async (ins) => {
 
 // Function that runs the "unitTest" case
 const unitTest = async (ins) => {
-  const { currentRun: run, name, otherFiles, conditions, report } = ins
+  const { run, name, otherFiles, conditions, report } = ins
 
   report.newUnitTest()
 
@@ -312,7 +312,7 @@ const unitTest = async (ins) => {
 
 // Function that runs the "tester" case
 const tester = async (ins) => {
-  const { currentRun: run, name, otherFiles, conditions, report } = ins
+  const { run, name, otherFiles, conditions, report } = ins
   let correct = 0
 
   report.newTester()
@@ -385,7 +385,7 @@ async function python (setup, params) {
       const functions = { call, run, sub, unitTest, tester }
       const { correct: newCorrect, total: newTotal } = await functions[section.type]?.({
         code,
-        currentRun,
+        run: currentRun,
         name,
         otherFiles,
         attributes: setup?.attributes,
