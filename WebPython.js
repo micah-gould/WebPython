@@ -229,11 +229,13 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
     const pf = await check(expectedOutput, output, attributes)
     if (pf === undefined) continue
     correct += pf === 'pass' ? 1 : 0
-    report.newRow()
-    report.pf(pf)
-    if (name) report.name(name)
-    if (args) args.forEach(arg => report.arg(arg.value ?? arg))
-    report.closeRow(output, expectedOutput)
+    if (attributes?.hidden !== true) {
+      report.newRow()
+      report.pf(pf)
+      if (name) report.name(name)
+      if (args) args.forEach(arg => report.arg(arg.value ?? arg))
+      report.closeRow(output, expectedOutput)
+    }
     total++
   }
   return { correct, total }
@@ -248,7 +250,7 @@ const getFilesAndImages = (files, images) => [...Object.entries(files ?? {}).map
 // Function that runs the "call" case
 const call = async (ins) => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
-  report.newCall()
+  if (attributes?.hidden !== true) report.newCall()
 
   await runCode(code, attributes?.timeout)
   await runDependents(name, otherFiles, conditions)
@@ -259,7 +261,7 @@ const call = async (ins) => {
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, func, [input])
 
-  if (end) report.closeTable()
+  if (end && attributes?.hidden !== true) report.closeTable()
   return { correct, total }
 }
 
@@ -267,7 +269,7 @@ const call = async (ins) => {
 const run = async (ins) => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
 
-  report.newRun(name)
+  if (attributes?.hidden !== true) report.newRun(name)
 
   const inputs = run.input?.split('\n') ?? '' // Get the inputs
 
@@ -283,7 +285,7 @@ const run = async (ins) => {
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
 
-  if (end) report.closeTable()
+  if (end && attributes?.hidden !== true) report.closeTable()
   return { correct, total }
 }
 
@@ -292,7 +294,7 @@ const sub = async (ins) => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
 
   const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
-  report.newSub(args)
+  if (attributes?.hidden !== true) report.newSub(args)
 
   // Replace the variables with their new values
   const newCode = args.reduce((acc, arg) => acc.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`), code)
@@ -302,15 +304,15 @@ const sub = async (ins) => {
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, name, args)
 
-  if (end) report.closeTable()
+  if (end && attributes?.hidden !== true) report.closeTable()
   return { correct, total }
 }
 
 // Function that runs the "unitTest" case
 const unitTest = async (ins) => {
-  const { run, name, otherFiles, conditions, report } = ins
+  const { run, name, otherFiles, attributes, conditions, report } = ins
 
-  report.newUnitTest()
+  if (attributes?.hidden !== true) report.newUnitTest()
 
   await runDependents(name, otherFiles, conditions)
   const total = (run.output?.split('\n')?.[0]?.match(/\./g) || []).length
@@ -322,16 +324,16 @@ const unitTest = async (ins) => {
     pf = correct === total ? 'pass' : 'fail'
   }
 
-  report.pf(pf)
+  if (attributes?.hidden !== true) report.pf(pf)
   return { correct, total }
 }
 
 // Function that runs the "tester" case
 const tester = async (ins) => {
-  const { run, name, otherFiles, conditions, report } = ins
+  const { run, name, otherFiles, attributes, conditions, report } = ins
   let correct = 0
 
-  report.newTester()
+  if (attributes?.hidden !== true) report.newTester()
 
   await runDependents(name, otherFiles, conditions)
   let HTMLoutput = '<pre class=\'output\'>'
@@ -343,12 +345,12 @@ const tester = async (ins) => {
     } else {
       const pf = await check(expectedOutputs[k], outputs[k])
       correct += pf === 'pass' ? 1 : 0
-      report.pf(pf)
+      if (attributes?.hidden !== true) report.pf(pf)
       HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
     }
   }
   total = outputs.length / 2
-  report.append(HTMLoutput)
+  if (attributes?.hidden !== true) report.append(HTMLoutput)
 
   return { correct, total }
 }
