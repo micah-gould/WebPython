@@ -1,7 +1,3 @@
-/* TODO:
-Deal with hidden test cases
-FIXME: double clicking "CodeCheck" causes error */
-
 /* eslint no-undef: off, no-unused-vars: off
     -------------
     no-undef is off because loadPyodide doesn't need to be declared locally
@@ -9,7 +5,7 @@ FIXME: double clicking "CodeCheck" causes error */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
-let OUTPUT, worker, fileNames, timeoutId // Variables that need to be global
+let OUTPUT, worker, fileNames, timeoutId, clicked // Variables that need to be global
 const imageEndings = ['gif', 'png', 'bmp']
 
 // Function that updates the value of the output and resize it
@@ -366,6 +362,8 @@ window.addEventListener('load', async () => {
 
 // Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
+  if (clicked) return { report: '' }
+  clicked = true
   await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
 
   const report = new ReportBuilder() // Create a new HTML report to return
@@ -422,5 +420,6 @@ async function python (setup, params) {
   }
 
   report.end()
+  clicked = false
   return { report: report.value() }
 }
