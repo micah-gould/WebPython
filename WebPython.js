@@ -42,8 +42,9 @@ const runCode = async (code, timeout = 30000) => {
   clearTimeout(timeoutId)
   timeoutId = setTimeout(() => {
     worker.terminate() // Stop the worker if it takes too long
-    updateTextArea('Python code execution timed out after 5 seconds', OUTPUT, false)
-  }, timeout) // FIXME: It works, but it still says "Submitting...""
+    updateTextArea(`Python code execution timed out after ${timeout} seconds`, OUTPUT, false)
+    document.getElementsByClassName('codecheck-submit-response')[0].textContent = 'Max execution time exceeded'
+  }, timeout)
   try {
     return await runWorker({ type: 'runCode', code })
   } catch (err) {
