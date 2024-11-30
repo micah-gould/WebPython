@@ -1,5 +1,6 @@
 /* TODO:
-Deal with timeout */
+Deal with hidden test cases
+FIXME: double clicking "CodeCheck" causes error */
 
 /* eslint no-undef: off, no-unused-vars: off
     -------------
@@ -8,7 +9,7 @@ Deal with timeout */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
-let OUTPUT, pyodide, fileNames // Variables that need to be global
+let OUTPUT, worker, fileNames, timeoutId // Variables that need to be global
 const imageEndings = ['gif', 'png', 'bmp']
 
 // Function that updates the value of the output and resize it
@@ -25,10 +26,26 @@ const handleError = async (err) => {
   }
 }
 
+const runWorker = async (code) => {
+  worker.postMessage(code)
+  const result = await new Promise((resolve) => {
+    worker.onmessage = (event) => {
+      clearTimeout(timeoutId)
+      resolve(event.data)
+    }
+  })
+  return result.success ? result : new Error(result.error)
+}
+
 // Function that runs python code
 const runCode = async (code) => {
+  clearTimeout(timeoutId)
+  timeoutId = setTimeout(() => {
+    worker.terminate() // Stop the worker if it takes too long
+    updateTextArea('Python code execution timed out after 5 seconds', OUTPUT, false)
+  }, 5000) // FIXME: It works, but it still says "Submitting...""
   try {
-    return await pyodide.runPython(code)
+    return await runWorker({ type: 'runCode', code })
   } catch (err) {
     await handleError(err)
   }
@@ -37,12 +54,14 @@ const runCode = async (code) => {
 // Function that gets the output of the python code
 const getOutput = async () => {
   const output = (await runCode('sys.stdout.getvalue()'))
+    .result
     .split('\n')
     .slice(stdoutOLD.length, -1)
     .join('\n') // Get the new outputs
   stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
 
   const err = (await runCode('sys.stderr.getvalue()'))
+    .result
     .split('\n')
     .slice(stderrOLD.length, -1)
     .join('\n') // Get the new errors
@@ -62,15 +81,9 @@ const setupPyodide = async () => {
   const START = Date.now() // Get the current time
 
   try {
-    pyodide = await loadPyodide() // Load Pyodide
-    await runCode(`
-      import sys
-      import io
-      sys.stdout = io.StringIO()
-      sys.stderr = io.StringIO()
-      `) // Capture the Pyodide output
-    await pyodide.loadPackage('pillow')
-    updateTextArea(`\nPyodide loaded in ${Date.now() - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
+    worker = new Worker('pyodideWorker.js') // Load Pyodide
+    const END = (await runWorker({ type: 'setup' })).endTime
+    updateTextArea(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
   } catch (err) {
     await handleError(err)
   }
@@ -80,18 +93,18 @@ const setupPyodide = async () => {
 
 // Function that loads Pyodide file system
 const loadFiles = async (files) => {
-  for (const filename in files) {
-    const file = files[filename] // Get the code/text/imageData
-    const input = imageEndings.includes(filename.split('.')[1]) // Check if the file is an image
+  for (const fileName in files) {
+    const file = files[fileName] // Get the code/text/imageData
+    const input = imageEndings.includes(fileName.split('.')[1]) // Check if the file is an image
       ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0)) // Decode image
       : file
     try {
-      await pyodide.FS.writeFile(filename, input)
+      await runWorker({ type: 'writeFile', fileName, input })
     } catch (err) {
       await handleError(err)
     }
   }
-  fileNames = await pyodide.FS.readdir(await pyodide.FS.cwd()).filter(file => file !== '.' && file !== '..')
+  fileNames = (await runWorker({ type: 'readdir', dir: (await runWorker({ type: 'cwd' })).cwd })).dir.filter(file => file !== '.' && file !== '..')
 }
 
 // Function that interleaves user input and output
@@ -149,12 +162,12 @@ const getCheckValues = async (run, file, imageName) => [file?.data !== undefined
   : (file?.name !== undefined
       ? file?.value
       : run?.output)?.replace(/^\n+|\n+$/g, '') ?? '',
-await pyodide.FS.analyzePath(imageName).exists
-  ? await pyodide.FS.readFile(imageName)
+(await runWorker({ type: 'analyzePath', fileName: imageName })).exists
+  ? (await runWorker({ type: 'readFile', fileName: imageName })).file
   : (file?.name !== undefined
-      ? await pyodide.FS.analyzePath(file.name).exists
-        ? await pyodide.FS.readFile(file.name, { encoding: 'utf8' })
-        : 'No File Found'
+      ? (await runWorker({ type: 'analyzePath', fileName: file.name })).exists
+          ? (await runWorker({ type: 'readFile', fileName: file.name, encoding: 'utf8' })).file
+          : 'No File Found'
       : (await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')]
 
 // Function that runs all files that call the user's file
@@ -199,7 +212,7 @@ const checkRequiredForbidden = (file, conditions) => {
 }
 
 const getImageName = async (z) => {
-  const newFileNames = await pyodide.FS.readdir(await pyodide.FS.cwd()).filter(file => file !== '.' && file !== '..' && imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
+  const newFileNames = (await runWorker({ type: 'readdir', dir: (await runWorker({ type: 'cwd' })).cwd })).dir.filter(file => file !== '.' && file !== '..' && imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
   const images = fileNames.filter(file => imageEndings.includes(file.split('.')[1]))
   return newFileNames.length > z ? newFileNames[z] : images.length > z ? images[z] : 'noFile'
 }
@@ -378,8 +391,7 @@ async function python (setup, params) {
         ?.map(arg => arg?.value?.split(' '))
         ?.flat() ?? [] // Get the command line arguments
       argv.unshift(name) // Add the filename to the args to simulate sys.argv
-
-      await runCode(`sys.argv = ${await pyodide.toPy(argv)}`) // Update sys.argv with the correct values
+      await runCode(`sys.argv = ${JSON.stringify(argv)}`) // Update sys.argv with the correct values
 
       // Run the correct case
       const functions = { call, run, sub, unitTest, tester }

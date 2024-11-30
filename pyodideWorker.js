@@ -6,13 +6,22 @@ self.onmessage = async (e) => {
   e = e.data
   // Load Pyodide
   if (!self.pyodide) {
-    console.log('loading')
     self.pyodide = await loadPyodide()
   }
 
   try {
   // Run Python code sent from the main thread
     switch (e.type) {
+      case 'setup':
+        await self.pyodide.runPython(`
+          import sys
+          import io
+          sys.stdout = io.StringIO()
+          sys.stderr = io.StringIO()
+          `) // Capture the Pyodide output
+        await self.pyodide.loadPackage('pillow')
+        self.postMessage({ success: true, endTime: Date.now() })
+        break
       case 'runCode':
         self.postMessage({ success: true, result: await self.pyodide.runPython(e.code) })
         break
