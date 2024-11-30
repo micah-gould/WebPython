@@ -6,7 +6,7 @@
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
 let OUTPUT, worker, fileNames, timeoutId, clicked // Variables that need to be global
-const imageEndings = ['gif', 'png', 'bmp']
+const imageEndings = ['apng', 'avif', 'bmp', 'cur', 'gif', 'ico', 'jfif', 'jpeg', 'jpg', 'pjp', 'pjpeg', 'png', 'svg', 'webp']
 
 // Function that updates the value of the output and resize it
 const updateTextArea = (text, area, append = true) => {
