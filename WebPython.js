@@ -38,12 +38,12 @@ const runWorker = async (code) => {
 }
 
 // Function that runs python code
-const runCode = async (code) => {
+const runCode = async (code, timeout = 30000) => {
   clearTimeout(timeoutId)
   timeoutId = setTimeout(() => {
     worker.terminate() // Stop the worker if it takes too long
     updateTextArea('Python code execution timed out after 5 seconds', OUTPUT, false)
-  }, 5000) // FIXME: It works, but it still says "Submitting...""
+  }, timeout) // FIXME: It works, but it still says "Submitting...""
   try {
     return await runWorker({ type: 'runCode', code })
   } catch (err) {
@@ -153,7 +153,10 @@ const check = async (expectedOutput, output, attributes) => {
     return Math.abs(+expectedOutput - +output) <= tolerance ? 'pass' : 'fail'
   }
 
-  return expectedOutput.trim() === output.trim() ? 'pass' : 'fail'
+  const maxlen = attributes?.maxoutputlen || 100000
+  return expectedOutput.slice(0, maxlen).trim() === output.slice(0, maxlen).trim()
+    ? 'pass'
+    : 'fail'
 }
 
 // Function that handles if the output is a string, and file, or an image
@@ -247,12 +250,12 @@ const call = async (ins) => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
   report.newCall()
 
-  await runCode(code)
+  await runCode(code, attributes?.timeout)
   await runDependents(name, otherFiles, conditions)
 
   const func = run.caption // Get function name
   const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
-  await runCode(`print(${func}(${input}))`) // Run each testcase
+  await runCode(`print(${func}(${input}))`, attributes?.timeout) // Run each testcase
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, func, [input])
 
@@ -275,7 +278,7 @@ const run = async (ins) => {
         : `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
     : code
 
-  await runCode(newCode) // Run each testcase
+  await runCode(newCode, attributes?.timeout) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
@@ -294,7 +297,7 @@ const sub = async (ins) => {
   // Replace the variables with their new values
   const newCode = args.reduce((acc, arg) => acc.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`), code)
 
-  await runCode(newCode) // Run each testcase
+  await runCode(newCode, attributes?.timeout) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, name, args)
