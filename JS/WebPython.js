@@ -49,7 +49,7 @@ const runCode = async (code, timeout = 30000) => {
 }
 
 // Function that gets the output of the python code
-const getOutput = async () => {
+const getOutput = async (hidden = false) => {
   const output = (await runCode('sys.stdout.getvalue()'))
     .result
     .split('\n')
@@ -65,7 +65,7 @@ const getOutput = async () => {
   stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
   if (output === '' && err === '') return OUTPUT.value
-  updateTextArea(`\n${output}\n${err}`, OUTPUT)
+  updateTextArea(hidden ? '\nHIDDEN' : `\n${output}\n${err}`, OUTPUT)
   return { output, err }
 }
 
@@ -168,7 +168,7 @@ const getCheckValues = async (run, file, imageName) => [file?.data !== undefined
       ? (await runWorker({ type: 'analyzePath', fileName: file.name })).exists
           ? (await runWorker({ type: 'readFile', fileName: file.name, encoding: 'utf8' })).file
           : 'No File Found'
-      : (await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')]
+      : (await getOutput(run?.hidden))?.output ?? (await getOutput(run?.hidden))).replace(/^\n+|\n+$/g, '')]
 
 // Function that runs all files that call the user's file
 const runDependents = async (name, otherFiles, conditions) => {
@@ -226,13 +226,13 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
     const pf = await check(expectedOutput, output, attributes)
     if (pf === undefined) continue
     correct += pf === 'pass' ? 1 : 0
-    if (run?.hidden !== true) {
-      report.newRow()
-      report.pf(pf)
-      if (name) report.name(name)
-      if (args) args.forEach(arg => report.arg(arg.value ?? arg))
-      report.closeRow(output, expectedOutput)
-    }
+
+    report.newRow()
+    report.pf(pf)
+    if (name) report.name(name, run?.hidden)
+    if (args) args.forEach(arg => report.arg(arg.value ?? arg, run?.hidden))
+    report.closeRow(output, expectedOutput, run?.hidden)
+
     total++
   }
   return { correct, total }
@@ -247,7 +247,7 @@ const getFilesAndImages = (files, images) => [...Object.entries(files ?? {}).map
 // Function that runs the "call" case
 const call = async (ins) => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
-  if (run?.hidden !== true) report.newCall()
+  report.newCall()
 
   await runCode(code, attributes?.timeout)
   await runDependents(name, otherFiles, conditions)
@@ -258,7 +258,7 @@ const call = async (ins) => {
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, func, [input])
 
-  if (end && run?.hidden !== true) report.closeTable()
+  if (end) report.closeTable()
   return { correct, total }
 }
 
@@ -266,7 +266,7 @@ const call = async (ins) => {
 const run = async (ins) => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
 
-  if (run?.hidden !== true) report.newRun(name)
+  report.newRun(name)
 
   const inputs = run.input?.split('\n') ?? '' // Get the inputs
 
@@ -282,7 +282,7 @@ const run = async (ins) => {
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
 
-  if (end && run?.hidden !== true) report.closeTable()
+  if (end) report.closeTable()
   return { correct, total }
 }
 
@@ -291,7 +291,7 @@ const sub = async (ins) => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
 
   const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
-  if (run?.hidden !== true) report.newSub(args)
+  report.newSub(args)
 
   // Replace the variables with their new values
   const newCode = args.reduce((acc, arg) => acc.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`), code)
@@ -301,7 +301,7 @@ const sub = async (ins) => {
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, name, args)
 
-  if (end && run?.hidden !== true) report.closeTable()
+  if (end) report.closeTable()
   return { correct, total }
 }
 
@@ -309,11 +309,11 @@ const sub = async (ins) => {
 const unitTest = async (ins) => {
   const { run, name, otherFiles, conditions, report } = ins
 
-  if (run?.hidden !== true) report.newUnitTest()
+  report.newUnitTest()
 
   await runDependents(name, otherFiles, conditions)
   const total = (run.output?.split('\n')?.[0]?.match(/\./g) || []).length
-  const correct = ((await getOutput()).err?.split('\n')?.[0]?.match(/\./g) || []).length
+  const correct = ((await getOutput(run?.hidden)).err?.split('\n')?.[0]?.match(/\./g) || []).length
   let pf
   if (run?.files?.length > 0) {
     console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
@@ -321,7 +321,7 @@ const unitTest = async (ins) => {
     pf = correct === total ? 'pass' : 'fail'
   }
 
-  if (run?.hidden !== true) report.pf(pf)
+  report.pf(pf)
   return { correct, total }
 }
 
@@ -335,7 +335,7 @@ const tester = async (ins) => {
   await runDependents(name, otherFiles, conditions)
   let HTMLoutput = '<pre class=\'output\'>'
   const expectedOutputs = run.output?.split('\n')?.filter(Boolean)
-  const outputs = (await getOutput()).output?.split('\n')
+  const outputs = (await getOutput(run?.hidden)).output?.split('\n')
   for (let k = 0; k < expectedOutputs.length; k++) {
     if (run?.files?.length > 0) {
       console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed

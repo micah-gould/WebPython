@@ -131,17 +131,17 @@ class ReportBuilder {
     this.append(`<span class=${pf}>${pf}</span> `)
   }
 
-  name (name) {
+  name (name, hidden = false) {
     this.append(`</td>
-        <td><pre>${name}</pre>`)
+        <td><pre>${hidden ? 'HIDDEN' : name}</pre>`)
   }
 
-  arg (arg) {
+  arg (arg, hidden = false) {
     this.append(`</td>
-        <td><pre>${arg}</pre>`)
+        <td><pre>${hidden ? 'HIDDEN' : arg}</pre>`)
   }
 
-  closeRow (output, expectedOutput) {
+  closeRow (output, expectedOutput, hidden = false) {
     if (output instanceof Uint8Array) {
       output = `<img src="${URL.createObjectURL(new Blob([output]))}">`
     }
@@ -150,7 +150,7 @@ class ReportBuilder {
     }
     this.append(`</td>
         <td><pre>${output}</pre></td>
-        <td><pre>${expectedOutput} </pre></td>
+        <td><pre>${hidden ? 'HIDDEN' : expectedOutput} </pre></td>
       </tr>`)
   }
 

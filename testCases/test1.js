@@ -10,6 +10,13 @@ horstmann_codecheck.setup.push({
           input: '3\n-3\n0\n',
           output:
                 'Enter a number, 0 to quit: 〈3〉\n9\nEnter a number, 0 to quit: 〈-3〉\n9\nEnter a number, 0 to quit: 〈0〉'
+        },
+        {
+          mainclass: 'numbers.py',
+          input: '4\n-4\n0\n',
+          output:
+                'Enter a number, 0 to quit: 〈4〉\n16\nEnter a number, 0 to quit: 〈-4〉\n16\nEnter a number, 0 to quit: 〈0〉',
+          hidden: true
         }
       ]
     }
