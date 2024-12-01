@@ -160,15 +160,15 @@ const check = async (expectedOutput, output, attributes) => {
 const getCheckValues = async (run, file, imageName) => [file?.data !== undefined
   ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
   : (file?.name !== undefined
-      ? file?.value
-      : run?.output)?.replace(/^\n+|\n+$/g, '') ?? '',
+    ? file?.value
+    : run?.output)?.replace(/^\n+|\n+$/g, '') ?? '',
 (await runWorker({ type: 'analyzePath', fileName: imageName })).exists
   ? (await runWorker({ type: 'readFile', fileName: imageName })).file
   : (file?.name !== undefined
-      ? (await runWorker({ type: 'analyzePath', fileName: file.name })).exists
-          ? (await runWorker({ type: 'readFile', fileName: file.name, encoding: 'utf8' })).file
-          : 'No File Found'
-      : (await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')]
+    ? (await runWorker({ type: 'analyzePath', fileName: file.name })).exists
+      ? (await runWorker({ type: 'readFile', fileName: file.name, encoding: 'utf8' })).file
+      : 'No File Found'
+    : (await getOutput())?.output ?? (await getOutput())).replace(/^\n+|\n+$/g, '')]
 
 // Function that runs all files that call the user's file
 const runDependents = async (name, otherFiles, conditions) => {
@@ -273,8 +273,8 @@ const run = async (ins) => {
   // Replace a user input with a computer input
   newCode = (/input\((.*?)\)/).test(code)
     ? (attributes?.interleave ?? true)
-        ? interleave(code, inputs)
-        : `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
+      ? interleave(code, inputs)
+      : `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
     : code
 
   await runCode(newCode, attributes?.timeout) // Run each testcase
