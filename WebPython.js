@@ -307,7 +307,7 @@ const sub = async (ins) => {
 
 // Function that runs the "unitTest" case
 const unitTest = async (ins) => {
-  const { run, name, otherFiles, attributes, conditions, report } = ins
+  const { run, name, otherFiles, conditions, report } = ins
 
   if (run?.hidden !== true) report.newUnitTest()
 
@@ -327,7 +327,7 @@ const unitTest = async (ins) => {
 
 // Function that runs the "tester" case
 const tester = async (ins) => {
-  const { run, name, otherFiles, attributes, conditions, report } = ins
+  const { run, name, otherFiles, conditions, report } = ins
   let correct = 0
 
   if (run?.hidden !== true) report.newTester()
