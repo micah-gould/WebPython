@@ -78,7 +78,7 @@ const setupPyodide = async () => {
   const START = Date.now() // Get the current time
 
   try {
-    worker = new Worker('pyodideWorker.js') // Load Pyodide
+    worker = new Worker('JS/pyodideWorker.js') // Load Pyodide
     const END = (await runWorker({ type: 'setup' })).endTime
     updateTextArea(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
   } catch (err) {
