@@ -62,12 +62,8 @@ class ReportBuilder {
     return this.report.includes(text)
   }
 
-  append (text) {
-    this.report += text
-  }
-
   appendOnce (text) {
-    this.append(this.has(text) ? '' : text)
+    this.report += this.has(text) ? '' : text
   }
 
   newCall () {
@@ -121,24 +117,43 @@ class ReportBuilder {
   <div class="run">`)
   }
 
+  Tests = class {
+    constructor (report) {
+      this.tests = '<pre class=\'output\'>'
+      this.report = report
+    }
+
+    addTest (output, expectedOutput, pf) {
+      this.tests += `${output}\n<span class=${pf}>${expectedOutput}</span>\n`
+    }
+
+    append () {
+      this.report.report += this.tests
+    }
+  }
+
+  newTests () {
+    return new this.Tests(this)
+  }
+
   newRow () {
-    this.append(`
+    this.report += `
       <tr>
-        <td>`)
+        <td>`
   }
 
   pf (pf) {
-    this.append(`<span class=${pf}>${pf}</span> `)
+    this.report += `<span class=${pf}>${pf}</span> `
   }
 
   name (name, hidden = false) {
-    this.append(`</td>
-        <td><pre>${hidden ? 'HIDDEN' : name}</pre>`)
+    this.report += `</td>
+        <td><pre>${hidden ? 'HIDDEN' : name}</pre>`
   }
 
   arg (arg, hidden = false) {
-    this.append(`</td>
-        <td><pre>${hidden ? 'HIDDEN' : arg}</pre>`)
+    this.report += `</td>
+        <td><pre>${hidden ? 'HIDDEN' : arg}</pre>`
   }
 
   closeRow (output, expectedOutput, hidden = false) {
@@ -148,33 +163,33 @@ class ReportBuilder {
     if (expectedOutput instanceof Uint8Array) {
       expectedOutput = `<img src="${URL.createObjectURL(new Blob([expectedOutput]))}">`
     }
-    this.append(`</td>
-        <td><pre>${output}</pre></td>
+    this.report += `</td>
+        <td><pre>${hidden ? 'HIDDEN' : output}</pre></td>
         <td><pre>${hidden ? 'HIDDEN' : expectedOutput} </pre></td>
-      </tr>`)
+      </tr>`
   }
 
   closeTable () {
-    this.append(`
-    </table>`)
+    this.report += `
+    </table>`
   }
 
   studentFiles (file) {
     const names = Object.keys(file)
     names.forEach(name => {
       const code = file[name]
-      this.append(`
+      this.report += `
   </div>
   <p class="header studentFiles">Submitted files</p>
   <div class="studentFiles">
     <p class="caption">${name}:</p>
     <pre class="output">${code}</pre>
-  </div>`)
+  </div>`
     })
   }
 
   providedFiles (files) {
-    this.append(`
+    this.report += `
   <p class="header providedFiles">Provided files</p>
   <div class="providedFiles">
     ${files
@@ -184,21 +199,21 @@ class ReportBuilder {
 <pre class="output">${file}</pre>`)
       .join('')
       : ''}
-  </div>`)
+  </div>`
   }
 
   score (correct, total) {
-    this.append(`
+    this.report += `
   <p class="header score">Score</p>
   <div class="score">
     <p class="score">${correct}/${total}</p>
-  </div>`)
+  </div>`
   }
 
   end () {
-    this.append(`
+    this.report += `
 </body>
-</html>`)
+</html>`
   }
 
   value () {

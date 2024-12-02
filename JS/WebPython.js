@@ -328,17 +328,17 @@ const tester = async (ins) => {
   if (run?.hidden !== true) report.newTester()
 
   await runDependents(name, otherFiles, conditions)
-  let HTMLoutput = '<pre class=\'output\'>'
+  const tests = report.newTests()
   const expectedOutputs = run.output?.split('\n')?.filter(Boolean)
   const outputs = (await getOutput(run?.hidden)).output?.split('\n')
   for (let k = 0; k < expectedOutputs.length; k++) {
     const pf = await check(expectedOutputs[k], outputs[k])
     correct += pf === 'pass' ? 1 : 0
     if (run?.hidden !== true) report.pf(pf)
-    HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
+    tests.addTest(outputs[k], expectedOutputs[++k], pf)
   }
   total = outputs.length / 2
-  if (run?.hidden !== true) report.append(HTMLoutput)
+  if (run?.hidden !== true) tests.append()
 
   return { correct, total }
 }
