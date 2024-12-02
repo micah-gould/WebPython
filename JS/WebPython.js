@@ -314,12 +314,7 @@ const unitTest = async (ins) => {
   await runDependents(name, otherFiles, conditions)
   const total = (run.output?.split('\n')?.[0]?.match(/\./g) || []).length
   const correct = ((await getOutput(run?.hidden)).err?.split('\n')?.[0]?.match(/\./g) || []).length
-  let pf
-  if (run?.files?.length > 0) {
-    console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
-  } else {
-    pf = correct === total ? 'pass' : 'fail'
-  }
+  const pf = correct === total ? 'pass' : 'fail'
 
   report.pf(pf)
   return { correct, total }
@@ -337,14 +332,10 @@ const tester = async (ins) => {
   const expectedOutputs = run.output?.split('\n')?.filter(Boolean)
   const outputs = (await getOutput(run?.hidden)).output?.split('\n')
   for (let k = 0; k < expectedOutputs.length; k++) {
-    if (run?.files?.length > 0) {
-      console.log('FILES') // FIXME: figure out how to deal with unittest in this case if needed
-    } else {
-      const pf = await check(expectedOutputs[k], outputs[k])
-      correct += pf === 'pass' ? 1 : 0
-      if (run?.hidden !== true) report.pf(pf)
-      HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
-    }
+    const pf = await check(expectedOutputs[k], outputs[k])
+    correct += pf === 'pass' ? 1 : 0
+    if (run?.hidden !== true) report.pf(pf)
+    HTMLoutput += `${outputs[k]}\n<span class=${pf}>${expectedOutputs[++k]}</span>\n`
   }
   total = outputs.length / 2
   if (run?.hidden !== true) report.append(HTMLoutput)
