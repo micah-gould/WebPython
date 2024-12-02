@@ -229,8 +229,8 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
 
     report.newRow()
     report.pf(pf)
-    if (name) report.name(name, run?.hidden)
-    if (args) args.forEach(arg => report.arg(arg.value ?? arg, run?.hidden))
+    if (name) report.info(name, run?.hidden)
+    if (args) args.forEach(arg => report.info(arg.value ?? arg, run?.hidden))
     report.closeRow(output, expectedOutput, run?.hidden)
 
     total++
@@ -412,5 +412,5 @@ async function python (setup, params) {
 
   report.end()
   clicked = false
-  return { report: report.value() }
+  return { report: report.report }
 }

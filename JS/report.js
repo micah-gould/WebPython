@@ -1,7 +1,3 @@
-/* eslint no-unused-vars: off
-    -------------
-    no-unused-vars is off because the class Report is written in this file but called from another */
-
 class ReportBuilder {
   constructor () {
     this.report = `
@@ -58,12 +54,8 @@ class ReportBuilder {
 <body>`
   }
 
-  has (text) {
-    return this.report.includes(text)
-  }
-
   appendOnce (text) {
-    this.report += this.has(text) ? '' : text
+    if (!this.report.includes(text)) this.report += text
   }
 
   newCall () {
@@ -117,21 +109,6 @@ class ReportBuilder {
   <div class="run">`)
   }
 
-  Tests = class {
-    constructor (report) {
-      this.tests = '<pre class=\'output\'>'
-      this.report = report
-    }
-
-    addTest (output, expectedOutput, pf) {
-      this.tests += `${output}\n<span class=${pf}>${expectedOutput}</span>\n`
-    }
-
-    append () {
-      this.report.report += this.tests
-    }
-  }
-
   newTests () {
     return new this.Tests(this)
   }
@@ -146,26 +123,20 @@ class ReportBuilder {
     this.report += `<span class=${pf}>${pf}</span> `
   }
 
-  name (name, hidden = false) {
+  info (info, hidden = false) {
     this.report += `</td>
-        <td><pre>${hidden ? 'HIDDEN' : name}</pre>`
-  }
-
-  arg (arg, hidden = false) {
-    this.report += `</td>
-        <td><pre>${hidden ? 'HIDDEN' : arg}</pre>`
+        <td><pre>${hidden ? 'HIDDEN' : info}</pre>`
   }
 
   closeRow (output, expectedOutput, hidden = false) {
-    if (output instanceof Uint8Array) {
-      output = `<img src="${URL.createObjectURL(new Blob([output]))}">`
-    }
-    if (expectedOutput instanceof Uint8Array) {
-      expectedOutput = `<img src="${URL.createObjectURL(new Blob([expectedOutput]))}">`
-    }
+    const format = output =>
+      output instanceof Uint8Array
+        ? `<img src="${URL.createObjectURL(new Blob([output]))}">`
+        : output
+
     this.report += `</td>
-        <td><pre>${hidden ? 'HIDDEN' : output}</pre></td>
-        <td><pre>${hidden ? 'HIDDEN' : expectedOutput} </pre></td>
+        <td><pre>${hidden ? 'HIDDEN' : format(output)}</pre></td>
+        <td><pre>${hidden ? 'HIDDEN' : format(expectedOutput)} </pre></td>
       </tr>`
   }
 
@@ -215,8 +186,19 @@ class ReportBuilder {
 </body>
 </html>`
   }
+}
 
-  value () {
-    return this.report
+ReportBuilder.Tests = class {
+  constructor (report) {
+    this.tests = '<pre class=\'output\'>'
+    this.report = report
+  }
+
+  addTest (output, expectedOutput, pf) {
+    this.tests += `${output}\n<span class=${pf}>${expectedOutput}</span>\n`
+  }
+
+  append () {
+    this.report.report += this.tests
   }
 }
