@@ -343,7 +343,7 @@ const tester = async (ins) => {
   return { correct, total }
 }
 
-// Code that runs when the window loads
+// Once the window is loaded the decription can be set and the text area for the output can be retrived
 window.addEventListener('load', async () => {
   document.getElementById('description').innerHTML += window.horstmann_codecheck.setup
     .map(a => (a?.description ?? ''))
@@ -353,7 +353,7 @@ window.addEventListener('load', async () => {
 
 // Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
-  if (clicked) return { report: '' }
+  if (clicked) return { report: '<body>Submitting...</body>' } // If the button had already been clicked return
   clicked = true
   await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
 
@@ -364,8 +364,8 @@ async function python (setup, params) {
     // Variables that are needed in every case
     let total = 0
     let correct = 0
-    const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) } // all non-editible files
-    const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.')))
+    const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) } // Object of all non-editible files
+    const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.'))) // Object of all files including student files
 
     await loadFiles(allFiles) // Load all files in the pyodide file system
 
@@ -376,7 +376,7 @@ async function python (setup, params) {
 
       const checks = checkRequiredForbidden(code, setup?.conditions) // Check if the user's code follows the required and forbidden riles
       if (checks.result === true) {
-        updateTextArea(checks.message ?? '', OUTPUT)
+        updateTextArea(checks.message ?? '', OUTPUT) // Post the error message to the user
         break
       }
 
