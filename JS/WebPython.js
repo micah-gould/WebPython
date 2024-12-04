@@ -1,7 +1,7 @@
 /* eslint no-undef: off, no-unused-vars: off
     -------------
-    no-undef is off because loadPyodide doesn't need to be declared locally
-    no-unused-vars is off because the function Python is written in this file but called from another */
+!   no-undef is off because loadPyodide doesn't need to be declared locally
+!   no-unused-vars is off because the function Python is written in this file but called from another */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
@@ -15,18 +15,19 @@ const updateTextArea = (text, area, append = true) => {
   area.style.height = `${area.scrollHeight}px`
 }
 
-// Function that handles all python errors
+//! Function that handles all python errors
 const handleError = async (err) => {
-  if (err.type !== 'SystemExit') {
+  if (err.type !== 'SystemExit') { //* Ignore a system.exit()
     updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
   }
 }
 
+//! Need to run code through this function and not "worker.postMessage()"
 const runWorker = async (code) => {
-  worker.postMessage(code)
-  const result = await new Promise((resolve) => {
+  worker.postMessage(code) //* Post the message to the worker
+  const result = await new Promise((resolve) => { //* Wait for the worker to finsih processing the message
     worker.onmessage = (event) => {
-      clearTimeout(timeoutId)
+      clearTimeout(timeoutId) //* If the code ran within the maxtime, clear the timeout
       resolve(event.data)
     }
   })
@@ -35,9 +36,9 @@ const runWorker = async (code) => {
 
 // Function that runs python code
 const runCode = async (code, timeout = 30000) => {
-  clearTimeout(timeoutId)
+  clearTimeout(timeoutId) //* Reset the timeout
   timeoutId = setTimeout(() => {
-    worker.terminate() // Stop the worker if it takes too long
+    worker.terminate() //! Stop the worker if it takes too long
     updateTextArea(`Python code execution timed out after ${timeout} seconds`, OUTPUT, false)
     document.getElementsByClassName('codecheck-submit-response')[0].textContent = 'Max execution time exceeded'
   }, timeout)
@@ -107,9 +108,9 @@ const loadFiles = async (files) => {
 // Function that interleaves user input and output
 const interleave = (code, inputs) => `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
   .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (match, indent, variable) =>
-      `${match}${indent}print(f"〈{${variable}}〉")`)
+      `${match}${indent}print(f"〈{${variable}}〉")`) //* Add a print statment with the user's input
 
-// Function that extractes pixel data
+//! The Uint8Arrays weren't matching, so this function is used to get the exact pixel data and compare those
 const extractPixelData = async (imageBitmap) => {
   // Create a temporary offscreen canvas
   const offscreenCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height)
@@ -123,26 +124,26 @@ const extractPixelData = async (imageBitmap) => {
   return imageData.data // returns an array of RGBA values
 }
 
+const normalizeWS = (...strings) => {
+  const newStrings = strings.map(string => string.replace(/\s+/g, ' ').trim())
+  return (newStrings.length === 1) ? newStrings[0] : newStrings
+}
+
 // Function that compares the given output with the expected output and update all nessasary variables
 const check = async (expectedOutput, output, attributes) => {
   if (output === '') return
+
   if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) {
     expectedOutput = await extractPixelData(await createImageBitmap(new Blob([expectedOutput])))
     output = await extractPixelData(await createImageBitmap(new Blob([output])))
     return output.length === expectedOutput.length &&
-      output.every((val, idx) => val === expectedOutput[idx])
+      output.every((val, idx) => val === expectedOutput[idx]) //* Check that every pixel's RGBA values match
       ? 'pass'
       : 'fail'
   }
 
-  if (attributes?.ignorecase === true) {
-    output = output.toLowerCase() // Closest JS equivlent to equalsIgnoreCase
-    expectedOutput = expectedOutput.toLowerCase()
-  }
-
   if (attributes?.ignorespace === true) {
-    output = output.replace(/\s+/g, '') // Equivlent to normalizeWS from java
-    expectedOutput = expectedOutput.replace(/\s+/g, '')
+    [output, expectedOutput] = normalizeWS(output, expectedOutput)
   }
 
   if (!Number.isNaN(+expectedOutput) && !Number.isNaN(+output)) {
@@ -151,7 +152,11 @@ const check = async (expectedOutput, output, attributes) => {
   }
 
   const maxlen = attributes?.maxoutputlen || 100000
-  return expectedOutput.slice(0, maxlen).trim() === output.slice(0, maxlen).trim()
+  expectedOutput = expectedOutput.slice(0, maxlen).trim()
+  output = output.slice(0, maxlen).trim()
+  return (attributes?.ignorespace
+    ? expectedOutput.equalsIgnoreCase(output)
+    : expectedOutput === output)
     ? 'pass'
     : 'fail'
 }
@@ -351,7 +356,7 @@ window.addEventListener('load', async () => {
   OUTPUT = document.getElementById('output') // Get the text area for the output
 })
 
-// Code starts here when it is called from horstmann_codecheck.js
+//* Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
   if (clicked) return { report: '<body>Submitting...</body>' } // If the button had already been clicked return
   clicked = true
@@ -399,7 +404,7 @@ async function python (setup, params) {
         conditions: setup?.conditions,
         end: section.runs.indexOf(currentRun) === section.runs.length - 1,
         report
-      }) ?? console.error('Function not found')
+      }) ?? console.error('Function not found') //! Unknown test case type
       correct += newCorrect
       total += newTotal
     }
