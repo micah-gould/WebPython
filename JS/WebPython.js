@@ -1,7 +1,13 @@
 /* eslint no-undef: off, no-unused-vars: off
     -------------
 !   no-undef is off because loadPyodide doesn't need to be declared locally
-!   no-unused-vars is off because the function Python is written in this file but called from another */
+!   no-unused-vars is off because the function Python is written in this file but called from another
+
+TODO:
+trap sys.exit()
+Change how the output is handled
+and be sure to replace any < and & in the text with &lt; and &amp
+*/
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
@@ -58,7 +64,7 @@ const getOutput = async (hidden = false) => {
     .join('\n') // Get the new outputs
   stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
 
-  const err = (await runCode('sys.stderr.getvalue()'))
+  const err = (await runCode('sys.stderr.getvalue()')) // TODO: capture sys.exit()
     .result
     .split('\n')
     .slice(stderrOLD.length, -1)
@@ -107,7 +113,7 @@ const loadFiles = async (files) => {
 
 // Function that interleaves user input and output
 const interleave = (code, inputs) => `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
-  .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (match, indent, variable) =>
+  .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (match, indent, variable) => // TODO: input will not always be assigned
       `${match}${indent}print(f"〈{${variable}}〉")`) //* Add a print statment with the user's input
 
 //! The Uint8Arrays weren't matching, so this function is used to get the exact pixel data and compare those
@@ -135,7 +141,7 @@ const check = async (expectedOutput, output, attributes) => {
 
   if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) {
     expectedOutput = await extractPixelData(await createImageBitmap(new Blob([expectedOutput])))
-    output = await extractPixelData(await createImageBitmap(new Blob([output])))
+    output = await extractPixelData(await createImageBitmap(new Blob([output]))) // TODO: Only show one image if they match. Find a visual way to show when image don't match
     return output.length === expectedOutput.length &&
       output.every((val, idx) => val === expectedOutput[idx]) //* Check that every pixel's RGBA values match
       ? 'pass'
@@ -189,11 +195,11 @@ const runDependents = async (name, otherFiles, conditions) => {
     if (checks.result === true) {
       updateTextArea(checks.message ?? '', OUTPUT)
       break
-    }
+    } // TODO: can this be less fragaile
     if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(code) &&
         !(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(code)) continue
 
-    await runCode(code)
+    await runCode(code) // FIXME: could be followed by a number. Check Java for regex
     if (file.endsWith('Test.py')) await runCode('try:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())')
   }
 }
@@ -216,7 +222,7 @@ const checkRequiredForbidden = (file, conditions) => {
   return { message, result }
 }
 
-const getImageName = async (z) => {
+const getImageName = async (z) => { // TODO: will be fixed
   const newFileNames = (await runWorker({ type: 'readdir', dir: (await runWorker({ type: 'cwd' })).cwd })).dir.filter(file => file !== '.' && file !== '..' && imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
   const images = fileNames.filter(file => imageEndings.includes(file.split('.')[1]))
   return newFileNames.length > z ? newFileNames[z] : images.length > z ? images[z] : 'noFile'
@@ -326,7 +332,7 @@ const unitTest = async (ins) => {
 }
 
 // Function that runs the "tester" case
-const tester = async (ins) => {
+const tester = async (ins) => { // FIXME: error on testcase 2
   const { run, name, otherFiles, conditions, report } = ins
   let correct = 0
 
@@ -342,7 +348,7 @@ const tester = async (ins) => {
     if (run?.hidden !== true) report.pf(pf)
     tests.addTest(outputs[k], expectedOutputs[++k], pf)
   }
-  total = outputs.length / 2
+  total = outputs.length / 2 // TODO: check the Java
   if (run?.hidden !== true) tests.append()
 
   return { correct, total }
@@ -359,8 +365,9 @@ window.addEventListener('load', async () => {
 //* Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
   if (clicked) return { report: '<body>Submitting...</body>' } // If the button had already been clicked return
-  clicked = true
+  clicked = true // TODO: Disable button??
   await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
+  // TODO: preload pyodide
 
   const report = new ReportBuilder() // Create a new HTML report to return
 
