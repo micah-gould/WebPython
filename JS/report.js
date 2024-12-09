@@ -1,7 +1,3 @@
-/* eslint no-unused-vars: off
-    -------------
-    no-unused-vars is off because the class Report is written in this file but called from another */
-
 class ReportBuilder {
   constructor () {
     this.report = `
@@ -58,16 +54,8 @@ class ReportBuilder {
 <body>`
   }
 
-  has (text) {
-    return this.report.includes(text)
-  }
-
-  append (text) {
-    this.report += text
-  }
-
   appendOnce (text) {
-    this.append(this.has(text) ? '' : text)
+    if (!this.report.includes(text)) this.report += text
   }
 
   newCall () {
@@ -121,60 +109,58 @@ class ReportBuilder {
   <div class="run">`)
   }
 
+  newTests () {
+    return new this.Tests(this)
+  }
+
   newRow () {
-    this.append(`
+    this.report += `
       <tr>
-        <td>`)
+        <td>`
   }
 
   pf (pf) {
-    this.append(`<span class=${pf}>${pf}</span> `)
+    this.report += `<span class=${pf}>${pf}</span> `
   }
 
-  name (name) {
-    this.append(`</td>
-        <td><pre>${name}</pre>`)
+  info (info, hidden = false) {
+    this.report += `</td>
+        <td><pre>${hidden ? 'HIDDEN' : info}</pre>`
   }
 
-  arg (arg) {
-    this.append(`</td>
-        <td><pre>${arg}</pre>`)
-  }
+  closeRow (output, expectedOutput, hidden = false) {
+    const format = output =>
+      output instanceof Uint8Array
+        ? `<img src="${URL.createObjectURL(new Blob([output]))}">`
+        : output
 
-  closeRow (output, expectedOutput) {
-    if (output instanceof Uint8Array) {
-      output = `<img src="${URL.createObjectURL(new Blob([output]))}">`
-    }
-    if (expectedOutput instanceof Uint8Array) {
-      expectedOutput = `<img src="${URL.createObjectURL(new Blob([expectedOutput]))}">`
-    }
-    this.append(`</td>
-        <td><pre>${output}</pre></td>
-        <td><pre>${expectedOutput} </pre></td>
-      </tr>`)
+    this.report += `</td>
+        <td><pre>${hidden ? 'HIDDEN' : format(output)}</pre></td>
+        <td><pre>${hidden ? 'HIDDEN' : format(expectedOutput)} </pre></td>
+      </tr>`
   }
 
   closeTable () {
-    this.append(`
-    </table>`)
+    this.report += `
+    </table>`
   }
 
   studentFiles (file) {
     const names = Object.keys(file)
     names.forEach(name => {
       const code = file[name]
-      this.append(`
+      this.report += `
   </div>
   <p class="header studentFiles">Submitted files</p>
   <div class="studentFiles">
     <p class="caption">${name}:</p>
     <pre class="output">${code}</pre>
-  </div>`)
+  </div>`
     })
   }
 
   providedFiles (files) {
-    this.append(`
+    this.report += `
   <p class="header providedFiles">Provided files</p>
   <div class="providedFiles">
     ${files
@@ -184,24 +170,35 @@ class ReportBuilder {
 <pre class="output">${file}</pre>`)
       .join('')
       : ''}
-  </div>`)
+  </div>`
   }
 
   score (correct, total) {
-    this.append(`
+    this.report += `
   <p class="header score">Score</p>
   <div class="score">
     <p class="score">${correct}/${total}</p>
-  </div>`)
+  </div>`
   }
 
   end () {
-    this.append(`
+    this.report += `
 </body>
-</html>`)
+</html>`
+  }
+}
+
+ReportBuilder.Tests = class {
+  constructor (report) {
+    this.tests = '<pre class=\'output\'>'
+    this.report = report
   }
 
-  value () {
-    return this.report
+  addTest (output, expectedOutput, pf) {
+    this.tests += `${output}\n<span class=${pf}>${expectedOutput}</span>\n`
+  }
+
+  append () {
+    this.report.report += this.tests
   }
 }

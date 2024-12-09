@@ -28,6 +28,15 @@ horstmann_codecheck.setup.push({
             { name: 'y', value: '4' }
           ],
           output: '6.0'
+        },
+        {
+          mainclass: 'numbers.py',
+          args: [
+            { name: 'x', value: '12' },
+            { name: 'y', value: '4' }
+          ],
+          output: '8.0',
+          hidden: true
         }
       ]
     }

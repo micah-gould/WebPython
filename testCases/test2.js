@@ -9,6 +9,12 @@ horstmann_codecheck.setup.push({
           mainclass: 'numbers.py',
           caption: 'numbersTester.py',
           output: '9\nExpected: 9\n9\nExpected: 9\n0\nExpected: 0\n'
+        },
+        {
+          mainclass: 'numbers.py',
+          caption: 'numbersTester.py',
+          output: '9\nExpected: 9\n9\nExpected: 9\n0\nExpected: 0\n',
+          hidden: true
         }
       ]
     }
