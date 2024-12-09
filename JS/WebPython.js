@@ -2,10 +2,6 @@
     -------------
 !   no-undef is off because loadPyodide doesn't need to be declared locally
 !   no-unused-vars is off because the function Python is written in this file but called from another
-
-TODO:
-Change how the output is handled
-FIXME: hidden outputs are broken
 */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
@@ -72,7 +68,8 @@ const getOutput = async (hidden = false) => {
 
   if (output === '' && err === '') return OUTPUT.value
   updateTextArea(hidden ? '\nHIDDEN' : `\n${output}`, OUTPUT)
-  if (!(err.includes('SystemExit') || hidden)) updateTextArea(`\n${err}`, OUTPUT)
+  if (!(err.includes('SystemExit')
+  )) updateTextArea(`\n${err}`, OUTPUT)
   return { output, err }
 }
 
@@ -126,9 +123,7 @@ const loadFiles = async files => {
 
 // Function that interleaves user input and output
 const interleave = async () =>
-  await runWorker({
-    type: 'runCode',
-    code: `
+  await runCode(`
 import builtins
 
 # Save the original input function so it can still be used
@@ -141,8 +136,7 @@ def custom_input(prompt=""):
     return user_input  # Return the input
 
 # Override the built-in input function
-builtins.input = custom_input`
-  })
+input = custom_input`)
 
 //! The Uint8Arrays weren't matching, so this function is used to get the exact pixel data and compare those
 const extractPixelData = async imageBitmap => {
@@ -253,7 +247,7 @@ const processAsImages = async (expected, actual) => {
 
 // Function that compares the given output with the expected output and update all nessasary variables
 const check = async (expectedOutput, output, attributes) => {
-  if (output === '') return { pf: undefined } // FIXME:
+  if (output === '') return { pf: undefined }
 
   if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) return await processAsImages(expectedOutput, output)
 
@@ -267,8 +261,8 @@ const check = async (expectedOutput, output, attributes) => {
   }
 
   const maxlen = attributes?.maxoutputlen || 100000
-  expectedOutput = expectedOutput.slice(0, maxlen).trim()
-  output = output.slice(0, maxlen).trim()
+  expectedOutput = expectedOutput?.slice(0, maxlen).trim()
+  output = output?.slice(0, maxlen).trim()
   return (attributes?.ignorespace
     ? expectedOutput.equalsIgnoreCase(output)
     : expectedOutput === output)
@@ -391,12 +385,11 @@ const run = async ins => {
   const inputs = run.input?.split('\n') ?? '' // Get the inputs
 
   // Replace a user input with a computer input
-  newCode = (/input\((.*?)\)/).test(code)
-    ? `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
-    : code
+  if ((/input\((.*?)\)/).test(code)) await runCode(`sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n`)
+
   if (attributes?.interleave ?? true) await interleave()
 
-  await runCode(newCode, attributes?.timeout) // Run each testcase
+  await runCode(code, attributes?.timeout) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
   const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)

@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const n = urlParams.get('n') || 24;
+    const test = urlParams.get('test') || 1;
     const script = document.createElement('script');
-    script.src = "/testCases/test" + n + ".js";
+    script.src = "/testCases/test" + test + ".js";
     document.head.appendChild(script);
   </script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
@@ -32,6 +32,46 @@
   <div id="description"></div>
   <div class="horstmann_codecheck"></div>
 
+  <button id="goBackButton">Go Back</button>
+  <button id="redirectButton">Go to next test</button>
+
+  <script>
+    // Add event listener to the button
+    document.getElementById('redirectButton').addEventListener('click', function () {
+      // Get the current URL
+      const currentUrl = new URL(window.location.href);
+
+      // Get the current value of the 'test' query parameter
+      const currentTestValue = currentUrl.searchParams.get('test');
+
+      // If 'test' is not defined or doesn't have a numeric value, initialize it to 'n'
+      const newTestValue = currentTestValue ? `${parseInt(currentTestValue) + 1}` : 1;
+
+      // Set the new URL with the updated query parameter
+      currentUrl.searchParams.set('test', newTestValue);
+
+      // Redirect to the new URL
+      window.location.href = currentUrl.toString();
+    });
+    // Add event listener to the button
+    document.getElementById('goBackButton').addEventListener('click', function () {
+      // Get the current URL
+      const currentUrl = new URL(window.location.href);
+
+      // Get the current value of the 'test' query parameter
+      const currentTestValue = currentUrl.searchParams.get('test');
+
+      // If 'test' is not defined or doesn't have a numeric value, initialize it to 'n'
+      const newTestValue = currentTestValue ? `${parseInt(currentTestValue) - 1}` : 1;
+
+      // Set the new URL with the updated query parameter
+      currentUrl.searchParams.set('test', newTestValue);
+
+      // Redirect to the new URL
+      window.location.href = currentUrl.toString();
+
+    });
+  </script>
 </body>
 
 </html>
