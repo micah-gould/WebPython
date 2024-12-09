@@ -4,7 +4,6 @@
 !   no-unused-vars is off because the function Python is written in this file but called from another
 
 TODO:
-trap sys.exit()
 Change how the output is handled
 and be sure to replace any < and & in the text with &lt; and &amp
 */
@@ -64,7 +63,7 @@ const getOutput = async (hidden = false) => {
     .join('\n') // Get the new outputs
   stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
 
-  const err = (await runCode('sys.stderr.getvalue()')) // TODO: capture sys.exit()
+  const err = (await runCode('sys.stderr.getvalue()'))
     .result
     .split('\n')
     .slice(stderrOLD.length, -1)
@@ -72,7 +71,8 @@ const getOutput = async (hidden = false) => {
   stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
   if (output === '' && err === '') return OUTPUT.value
-  updateTextArea(hidden ? '\nHIDDEN' : `\n${output}\n${err}`, OUTPUT)
+  updateTextArea(hidden ? '\nHIDDEN' : `\n${output}`, OUTPUT)
+  if (!(err.includes('SystemExit') || hidden)) updateTextArea(`\n${err}`, OUTPUT)
   return { output, err }
 }
 
