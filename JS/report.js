@@ -124,12 +124,12 @@ class ReportBuilder {
     this.report += `<span class=${pf}>${pf}</span> `
   }
 
-  info (info, hidden = false) {
+  info (hidden = false, info) {
     this.report += `</td>
         <td><pre>${hidden ? 'HIDDEN' : info}</pre>`
   }
 
-  closeRow (output, expectedOutput, hidden = false) {
+  closeRow (hidden = false, output, expectedOutput, diff) {
     const format = output =>
       output instanceof Uint8Array
         ? `<img src="${URL.createObjectURL(new Blob([output]))}">`
@@ -137,7 +137,8 @@ class ReportBuilder {
 
     this.report += `</td>
         <td><pre>${hidden ? 'HIDDEN' : format(output)}</pre></td>
-        <td><pre>${hidden ? 'HIDDEN' : format(expectedOutput)} </pre></td>
+        <td><pre>${hidden ? 'HIDDEN' : format(expectedOutput)}</pre></td>
+        ${diff ? `        <td><pre>${hidden ? 'HIDDEN' : format(diff)}</pre></td>` : ''}
       </tr>`
   }
 

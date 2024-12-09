@@ -5,7 +5,7 @@
 
 TODO:
 Change how the output is handled
-and be sure to replace any < and & in the text with &lt; and &amp
+FIXME: hidden outputs are broken
 */
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
@@ -21,17 +21,17 @@ const updateTextArea = (text, area, append = true) => {
 }
 
 //! Function that handles all python errors
-const handleError = async (err) => {
+const handleError = async err => {
   if (err.type !== 'SystemExit') { //* Ignore a system.exit()
     updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
   }
 }
 
 //! Need to run code through this function and not "worker.postMessage()"
-const runWorker = async (code) => {
+const runWorker = async code => {
   worker.postMessage(code) //* Post the message to the worker
-  const result = await new Promise((resolve) => { //* Wait for the worker to finsih processing the message
-    worker.onmessage = (event) => {
+  const result = await new Promise(resolve => { //* Wait for the worker to finsih processing the message
+    worker.onmessage = event => {
       clearTimeout(timeoutId) //* If the code ran within the maxtime, clear the timeout
       resolve(event.data)
     }
@@ -78,6 +78,15 @@ const getOutput = async (hidden = false) => {
 
 // Function that sets up Pyodide
 const setupPyodide = async () => {
+  const firstLoad = worker === undefined
+
+  const buttons = document.querySelectorAll('.codecheckSubmit span')
+
+  // Disable all the buttons
+  buttons.forEach(button => {
+    button.classList.add('disabled')
+  })
+
   stdoutOLD = []
   stderrOLD = []
   updateTextArea('Pyodide loading', OUTPUT, false) // Inform the user that Pyodide is loading
@@ -85,18 +94,22 @@ const setupPyodide = async () => {
   const START = Date.now() // Get the current time
 
   try {
-    worker = new Worker('JS/pyodideWorker.js') // Load Pyodide
+    worker = new Worker('JS/pyodideWorker.js' /* path from the HTML file */) // Load Pyodide
     const END = (await runWorker({ type: 'setup' })).endTime
     updateTextArea(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
   } catch (err) {
     await handleError(err)
   }
 
-  updateTextArea('', OUTPUT, false) // Clear the output
+  if (!firstLoad) return
+
+  buttons.forEach(button => {
+    button.classList.remove('disabled') // Remove disabled styling
+  })
 }
 
 // Function that loads Pyodide file system
-const loadFiles = async (files) => {
+const loadFiles = async files => {
   for (const fileName in files) {
     const file = files[fileName] // Get the code/text/imageData
     const input = imageEndings.includes(fileName.split('.')[1]) // Check if the file is an image
@@ -108,16 +121,31 @@ const loadFiles = async (files) => {
       await handleError(err)
     }
   }
-  fileNames = (await runWorker({ type: 'readdir', dir: (await runWorker({ type: 'cwd' })).cwd })).dir.filter(file => file !== '.' && file !== '..')
+  fileNames = (await runWorker({ type: 'readcwd' })).files
 }
 
 // Function that interleaves user input and output
-const interleave = (code, inputs) => `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
-  .replace(/(\s*)(\b\w+\b)\s*=\s*.*?\binput\("(.*?)"\).*/g, (match, indent, variable) => // TODO: input will not always be assigned
-      `${match}${indent}print(f"〈{${variable}}〉")`) //* Add a print statment with the user's input
+const interleave = async () =>
+  await runWorker({
+    type: 'runCode',
+    code: `
+import builtins
+
+# Save the original input function so it can still be used
+original_input = builtins.input
+
+# Define the custom input function
+def custom_input(prompt=""):
+    user_input = original_input(prompt)  # Call the original input function
+    print(f"〈{user_input}〉")  # Print the input back to the user
+    return user_input  # Return the input
+
+# Override the built-in input function
+builtins.input = custom_input`
+  })
 
 //! The Uint8Arrays weren't matching, so this function is used to get the exact pixel data and compare those
-const extractPixelData = async (imageBitmap) => {
+const extractPixelData = async imageBitmap => {
   // Create a temporary offscreen canvas
   const offscreenCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height)
   const ctx = offscreenCanvas.getContext('2d')
@@ -135,18 +163,99 @@ const normalizeWS = (...strings) => {
   return (newStrings.length === 1) ? newStrings[0] : newStrings
 }
 
+function getImageDiffs (expected, actual) {
+  if (!expected || !actual) return 'Missing Image'
+  if (!(expected.width === actual.width && expected.height === actual.height)) return 'Sizes do not match'
+
+  // Create hidden canvases
+  const canvasExpected = new OffscreenCanvas(expected.width, expected.height)
+  const canvasActual = new OffscreenCanvas(actual.width, actual.height)
+  const canvasDiff = new OffscreenCanvas(expected.width, expected.height)
+
+  // Get contexts
+  const ctxExpected = canvasExpected.getContext('2d')
+  const ctxActual = canvasActual.getContext('2d')
+  const ctxDiff = canvasDiff.getContext('2d')
+
+  // Draw images onto their respective canvases
+  ctxExpected.drawImage(expected, 0, 0)
+  ctxActual.drawImage(actual, 0, 0)
+
+  // Get image data
+  const expectedImgData = ctxExpected.getImageData(0, 0, canvasExpected.width, canvasExpected.height)
+  const actualImgData = ctxActual.getImageData(0, 0, canvasActual.width, canvasActual.height)
+  const diffData = ctxDiff.createImageData(canvasDiff.width, canvasDiff.height)
+
+  const THRESHOLD = 200
+  const MAXCDIFF = 3 * 255 * 255
+
+  // Loop through every pixel
+  for (let y = 0; y < canvasDiff.height; y++) {
+    for (let x = 0; x < canvasDiff.width; x++) {
+      const index = (y * canvasDiff.width + x) * 4
+
+      let r1 = 255; let g1 = 255; let b1 = 255
+      let r2 = 255; let g2 = 255; let b2 = 255
+
+      if (x < expected.width && y < expected.height) {
+        r1 = expectedImgData.data[(y * expected.width + x) * 4]
+        g1 = expectedImgData.data[(y * expected.width + x) * 4 + 1]
+        b1 = expectedImgData.data[(y * expected.width + x) * 4 + 2]
+      }
+
+      if (x < actual.width && y < actual.height) {
+        r2 = actualImgData.data[(y * actual.width + x) * 4]
+        g2 = actualImgData.data[(y * actual.width + x) * 4 + 1]
+        b2 = actualImgData.data[(y * actual.width + x) * 4 + 2]
+      }
+
+      const dr = r1 - r2
+      const dg = g1 - g2
+      const db = b1 - b2
+
+      const cdiff = dr * dr + dg * dg + db * db
+
+      let r = 255; let g = 255; let b = 255
+      if (cdiff !== 0) {
+        const gray = THRESHOLD - Math.floor((THRESHOLD * cdiff) / MAXCDIFF)
+        r = 255
+        g = gray
+        b = gray
+      }
+
+      diffData.data[index] = r
+      diffData.data[index + 1] = g
+      diffData.data[index + 2] = b
+      diffData.data[index + 3] = 255 // Fully opaque
+    }
+  }
+
+  ctxDiff.putImageData(diffData, 0, 0)
+
+  // Convert canvas to PNG Uint8Array
+  return canvasDiff.convertToBlob({ type: 'image/png' })
+    .then(blob => blob.arrayBuffer())
+    .then(buffer => new Uint8Array(buffer))
+}
+
+const processAsImages = async (expected, actual) => {
+  const expectedImage = await createImageBitmap(new Blob([expected]))
+  const actualImage = await createImageBitmap(new Blob([actual]))
+
+  const expectedImageData = await extractPixelData(expectedImage)
+  const actualImageData = await extractPixelData(actualImage) // TODO: Only show one image if they match.
+
+  return actualImageData.length === expectedImageData.length &&
+  actualImageData.every((val, idx) => val === expectedImageData[idx]) //* Check that every pixel's RGBA values match
+    ? { pf: 'pass' }
+    : { pf: 'fail', imageDiff: await getImageDiffs(expectedImage, actualImage) }
+}
+
 // Function that compares the given output with the expected output and update all nessasary variables
 const check = async (expectedOutput, output, attributes) => {
-  if (output === '') return
+  if (output === '') return { pf: undefined } // FIXME:
 
-  if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) {
-    expectedOutput = await extractPixelData(await createImageBitmap(new Blob([expectedOutput])))
-    output = await extractPixelData(await createImageBitmap(new Blob([output]))) // TODO: Only show one image if they match. Find a visual way to show when image don't match
-    return output.length === expectedOutput.length &&
-      output.every((val, idx) => val === expectedOutput[idx]) //* Check that every pixel's RGBA values match
-      ? 'pass'
-      : 'fail'
-  }
+  if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) return await processAsImages(expectedOutput, output)
 
   if (attributes?.ignorespace === true) {
     [output, expectedOutput] = normalizeWS(output, expectedOutput)
@@ -154,7 +263,7 @@ const check = async (expectedOutput, output, attributes) => {
 
   if (!Number.isNaN(+expectedOutput) && !Number.isNaN(+output)) {
     const tolerance = attributes?.tolerance || 1e-6
-    return Math.abs(+expectedOutput - +output) <= tolerance ? 'pass' : 'fail'
+    return Math.abs(+expectedOutput - +output) <= tolerance ? { pf: 'pass' } : { pf: 'fail' }
   }
 
   const maxlen = attributes?.maxoutputlen || 100000
@@ -163,8 +272,8 @@ const check = async (expectedOutput, output, attributes) => {
   return (attributes?.ignorespace
     ? expectedOutput.equalsIgnoreCase(output)
     : expectedOutput === output)
-    ? 'pass'
-    : 'fail'
+    ? { pf: 'pass' }
+    : { pf: 'fail' }
 }
 
 // Function that handles if the output is a string, and file, or an image
@@ -199,8 +308,8 @@ const runDependents = async (name, otherFiles, conditions) => {
     if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(code) &&
         !(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(code)) continue
 
-    await runCode(code) // FIXME: could be followed by a number. Check Java for regex
-    if (file.endsWith('Test.py')) await runCode('try:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())')
+    await runCode(code)
+    if (/^(.*(Test|_test)(\d*)\.py)$/.test(file)) await runCode('try:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())')
   }
 }
 
@@ -222,8 +331,8 @@ const checkRequiredForbidden = (file, conditions) => {
   return { message, result }
 }
 
-const getImageName = async (z) => { // TODO: will be fixed
-  const newFileNames = (await runWorker({ type: 'readdir', dir: (await runWorker({ type: 'cwd' })).cwd })).dir.filter(file => file !== '.' && file !== '..' && imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
+const getImageName = async z => { // TODO: will be fixed
+  const newFileNames = (await runWorker({ type: 'readcwd' })).files.filter(file => imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
   const images = fileNames.filter(file => imageEndings.includes(file.split('.')[1]))
   return newFileNames.length > z ? newFileNames[z] : images.length > z ? images[z] : 'noFile'
 }
@@ -234,15 +343,15 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
   let total = 0
   for (let z = -1; z < (filesAndImages?.length ?? 0); z++) {
     const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], await getImageName(z))
-    const pf = await check(expectedOutput, output, attributes)
+    const { pf, imageDiff } = await check(expectedOutput, output, attributes)
     if (pf === undefined) continue
     correct += pf === 'pass' ? 1 : 0
 
     report.newRow()
     report.pf(pf)
-    if (name) report.info(name, run?.hidden)
-    if (args) args.forEach(arg => report.info(arg.value ?? arg, run?.hidden))
-    report.closeRow(output, expectedOutput, run?.hidden)
+    if (name) report.info(run?.hidden, name)
+    if (args) args.forEach(arg => report.info(run?.hidden, arg.value ?? arg))
+    report.closeRow(run?.hidden, output, expectedOutput, imageDiff)
 
     total++
   }
@@ -256,7 +365,7 @@ const getFilesAndImages = (files, images) => [...Object.entries(files ?? {}).map
   })), ...images ?? []]
 
 // Function that runs the "call" case
-const call = async (ins) => {
+const call = async ins => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
   report.newCall()
 
@@ -274,7 +383,7 @@ const call = async (ins) => {
 }
 
 // Function that runs the "run" case
-const run = async (ins) => {
+const run = async ins => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
 
   report.newRun(name)
@@ -283,10 +392,9 @@ const run = async (ins) => {
 
   // Replace a user input with a computer input
   newCode = (/input\((.*?)\)/).test(code)
-    ? (attributes?.interleave ?? true)
-        ? interleave(code, inputs)
-        : `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
+    ? `sys.stdin = io.StringIO("""${inputs.join('\n')}""")\n${code}`
     : code
+  if (attributes?.interleave ?? true) await interleave()
 
   await runCode(newCode, attributes?.timeout) // Run each testcase
   await runDependents(name, otherFiles, conditions)
@@ -298,7 +406,7 @@ const run = async (ins) => {
 }
 
 // Function that runs the "sub" case
-const sub = async (ins) => {
+const sub = async ins => {
   const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
 
   const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
@@ -317,7 +425,7 @@ const sub = async (ins) => {
 }
 
 // Function that runs the "unitTest" case
-const unitTest = async (ins) => {
+const unitTest = async ins => {
   const { run, name, otherFiles, conditions, report } = ins
 
   report.newUnitTest()
@@ -332,7 +440,7 @@ const unitTest = async (ins) => {
 }
 
 // Function that runs the "tester" case
-const tester = async (ins) => { // FIXME: error on testcase 2
+const tester = async ins => {
   const { run, name, otherFiles, conditions, report } = ins
   let correct = 0
 
@@ -343,7 +451,7 @@ const tester = async (ins) => { // FIXME: error on testcase 2
   const expectedOutputs = run.output?.split('\n')?.filter(Boolean)
   const outputs = (await getOutput(run?.hidden)).output?.split('\n')
   for (let k = 0; k < expectedOutputs.length; k++) {
-    const pf = await check(expectedOutputs[k], outputs[k])
+    const pf = (await check(expectedOutputs[k], outputs[k])).pf
     correct += pf === 'pass' ? 1 : 0
     if (run?.hidden !== true) report.pf(pf)
     tests.addTest(outputs[k], expectedOutputs[++k], pf)
@@ -360,14 +468,15 @@ window.addEventListener('load', async () => {
     .map(a => (a?.description ?? ''))
     .join('\n') // Set the description of the task
   OUTPUT = document.getElementById('output') // Get the text area for the output
+  await setupPyodide()
 })
 
 //* Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
-  if (clicked) return { report: '<body>Submitting...</body>' } // If the button had already been clicked return
-  clicked = true // TODO: Disable button??
-  await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
-  // TODO: preload pyodide
+  const hasBeenLoaded = (await runWorker({ type: 'readcwd' })).files.length > 0 //! If pyodide has been run, the users files would have been loaded
+  if (hasBeenLoaded) await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
+
+  updateTextArea('', OUTPUT, false) // Clear the output
 
   const report = new ReportBuilder() // Create a new HTML report to return
 
@@ -423,6 +532,12 @@ async function python (setup, params) {
   }
 
   report.end()
-  clicked = false
+
+  const buttons = document.querySelectorAll('.codecheckSubmit span')
+
+  buttons.forEach(button => {
+    button.classList.remove('disabled') // Remove disabled styling
+  })
+
   return { report: report.report }
 }

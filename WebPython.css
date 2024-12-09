@@ -3,3 +3,9 @@
     resize: none;
     font-size: 12px;
 }
+
+span.disabled {
+    pointer-events: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
