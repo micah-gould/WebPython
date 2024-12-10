@@ -312,7 +312,7 @@ async function unitTest (ins) {
 }
 
 // Function that runs the "tester" case
-async function tester (ins) {
+async function tester (ins) { // TODO: Change logic to account for missing "Expected: ..."
   const { run, name, otherFiles, conditions, report } = ins
   let correct = 0
 
@@ -328,7 +328,7 @@ async function tester (ins) {
     report.pf(pf)
     tests.addTest(run?.hidden, outputs[k], outputs[++k].split(':')[1], pf)
   }
-  const total = outputs.length / 2 // TODO: check the Java
+  const total = outputs.length / 2 // TODO: Change this
   tests.append()
 
   return { correct, total }
