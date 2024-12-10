@@ -249,7 +249,7 @@ async function call (ins) {
   const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
   await runCode(`print(${func}(${input}))`, attributes?.timeout) // Run each testcase
 
-  const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, func, [input])
+  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, func, input: [input] })
 
   if (end) report.closeTable()
   return { correct, total }
@@ -271,7 +271,7 @@ async function run (ins) {
   await runCode(code, attributes?.timeout) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
-  const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report)
+  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report })
 
   if (end) report.closeTable()
   return { correct, total }
@@ -290,7 +290,7 @@ async function sub (ins) {
   await runCode(newCode, attributes?.timeout) // Run each testcase
   await runDependents(name, otherFiles, conditions)
 
-  const { correct, total } = await processOutputs(run, getFilesAndImages(run?.files, run?.images), attributes, report, name, args)
+  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, name, args })
 
   if (end) report.closeTable()
   return { correct, total }
@@ -314,21 +314,45 @@ async function unitTest (ins) {
 // Function that runs the "tester" case
 async function tester (ins) { // TODO: Change logic to account for missing "Expected: ..."
   const { run, name, otherFiles, conditions, report } = ins
-  let correct = 0
 
   if (run?.hidden !== true) report.newTester()
 
   await runDependents(name, otherFiles, conditions)
   const tests = report.newTests()
-  const expectedOutputs = run.output?.split('\n')?.filter(Boolean)
-  const outputs = (await getOutput(run?.hidden)).output?.split('\n')
-  for (let k = 0; k < expectedOutputs.length; k++) {
-    const pf = (await check(expectedOutputs[k], outputs[k])).pf
-    correct += pf === 'pass' ? 1 : 0
-    report.pf(pf)
-    tests.addTest(run?.hidden, outputs[k], outputs[++k].split(':')[1], pf)
+  const output = (await getCheckValues(run)).actual
+  const outputs = output.split('\n')
+  const matches = new Set()
+  const mismatches = new Set()
+  const epextedTests = output.match(/expected/gi).length
+  let actualTests = 0
+
+  for (let i = 0; i < outputs.length; i++) {
+    if (outputs[i].split(':')[0].toLowerCase() !== 'expected') continue
+    actualTests++
+    if (i === 0) {
+      tests.addTest(run?.hidden, '', 'No actual value for "Expected: ..." in line 1\n', 'fail')
+      mismatches.add(0)
+      report.pf('fail')
+      continue
+    }
+    const expected = getSuffix(outputs[i])
+    const actual = outputs[i - 1]
+    // The second comparison is needed if actual has no prefix
+    // but a colon
+    let pf = (await check({ actual: getSuffix(actual), expected })).pf
+    if (pf === 'fail') pf = (await check({ actual, expected })).pf
+    if (pf === 'pass') {
+      report.pf('pass')
+      matches.add(i)
+    } else {
+      mismatches.add(i)
+      report.pf('fail')
+    }
+    tests.addTest(run?.hidden, actual, expected, pf)
   }
-  const total = outputs.length / 2 // TODO: Change this
+
+  const correct = matches.size
+  const total = epextedTests
   tests.append()
 
   return { correct, total }
@@ -368,12 +392,13 @@ function getFilesAndImages (files, images) {
 }
 
 // Function that processes outputs
-async function processOutputs (run, filesAndImages, attributes, report, name, args) {
+async function processOutputs (ins) {
+  const { run, filesAndImages, attributes, report, name, args } = ins
   let correct = 0
   let total = 0
   for (let z = -1; z < (filesAndImages?.length ?? 0); z++) {
-    const [expectedOutput, output] = await getCheckValues(run, filesAndImages[z], await getImageName(z))
-    const { pf, imageDiff } = await check(expectedOutput, output, attributes)
+    const { expected, actual } = await getCheckValues({ run, file: filesAndImages[z], imageName: await getImageName(z) })
+    const { pf, imageDiff } = await check({ actual, expected, attributes })
     if (pf === undefined) continue
     correct += pf === 'pass' ? 1 : 0
 
@@ -381,7 +406,7 @@ async function processOutputs (run, filesAndImages, attributes, report, name, ar
     report.pf(pf)
     if (name) report.info(run?.hidden, name)
     if (args) args.forEach(arg => report.info(run?.hidden, arg.value ?? arg))
-    report.closeRow(run?.hidden, pf === 'pass', output, expectedOutput, imageDiff)
+    report.closeRow({ actual, expected, imageDiff, hidden: run?.hidden, pass: pf === 'pass' })
 
     total++
   }
@@ -395,14 +420,15 @@ async function getImageName (z) { // TODO: will be fixed
 }
 
 // Function that handles if the output is a string, and file, or an image
-async function getCheckValues (run, file, imageName) {
-  const expectedOutput = file?.data !== undefined
+async function getCheckValues (ins) {
+  const { run, file, imageName } = ins
+  const expected = file?.data !== undefined
     ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
     : (file?.name !== undefined
         ? file?.value
         : run?.output)?.replace(/^\n+|\n+$/g, '') ?? ''
 
-  const actualOutput = (await runWorker({ type: 'analyzePath', fileName: imageName })).exists
+  const actual = (await runWorker({ type: 'analyzePath', fileName: imageName })).exists
     ? (await runWorker({ type: 'readFile', fileName: imageName })).file
     : (file?.name !== undefined
         ? (await runWorker({ type: 'analyzePath', fileName: file.name })).exists
@@ -410,7 +436,7 @@ async function getCheckValues (run, file, imageName) {
             : 'No File Found'
         : (await getOutput(run?.hidden))?.output ?? (await getOutput(run?.hidden))).replace(/^\n+|\n+$/g, '')
 
-  return [expectedOutput, actualOutput]
+  return { expected, actual }
 }
 
 // Function that interleaves user input and output
@@ -432,26 +458,27 @@ input = custom_input`)
 }
 
 // Function that compares the given output with the expected output and update all nessasary variables
-async function check (expectedOutput, output, attributes) {
-  if (output === '') return { pf: undefined }
+async function check (ins) {
+  let { actual, expected, attributes } = ins
+  if (actual === '') return { pf: undefined }
 
-  if (expectedOutput instanceof Uint8Array && output instanceof Uint8Array) return await processAsImages(expectedOutput, output)
+  if (expected instanceof Uint8Array && actual instanceof Uint8Array) return await processAsImages(expected, actual)
 
   if (attributes?.ignorespace === true) {
-    [output, expectedOutput] = normalizeWS(output, expectedOutput)
+    [actual, expected] = normalizeWS(actual, expected)
   }
 
-  if (!Number.isNaN(+expectedOutput) && !Number.isNaN(+output)) {
+  if (!Number.isNaN(+expected) && !Number.isNaN(+actual)) {
     const tolerance = attributes?.tolerance || 1e-6
-    return Math.abs(+expectedOutput - +output) <= tolerance ? { pf: 'pass' } : { pf: 'fail' }
+    return Math.abs(+expected - +actual) <= tolerance ? { pf: 'pass' } : { pf: 'fail' }
   }
 
   const maxlen = attributes?.maxoutputlen || 100000
-  expectedOutput = expectedOutput?.slice(0, maxlen).trim()
-  output = output?.slice(0, maxlen).trim()
+  expected = expected?.slice(0, maxlen).trim()
+  actual = actual?.slice(0, maxlen).trim()
   return (attributes?.ignorespace
-    ? expectedOutput.equalsIgnoreCase(output)
-    : expectedOutput === output)
+    ? expected.equalsIgnoreCase(actual)
+    : expected === actual)
     ? { pf: 'pass' }
     : { pf: 'fail' }
 }
@@ -460,17 +487,17 @@ async function processAsImages (expected, actual) {
   const expectedImage = await createImageBitmap(new Blob([expected]))
   const actualImage = await createImageBitmap(new Blob([actual]))
 
-  const expectedImageData = await extractPixelData(expectedImage)
-  const actualImageData = await extractPixelData(actualImage)
+  const expectedImageData = extractPixelData(expectedImage)
+  const actualImageData = extractPixelData(actualImage)
 
   return actualImageData.length === expectedImageData.length &&
   actualImageData.every((val, idx) => val === expectedImageData[idx]) //* Check that every pixel's RGBA values match
     ? { pf: 'pass' }
-    : { pf: 'fail', imageDiff: await getImageDiffs(expectedImage, actualImage) }
+    : { pf: 'fail', imageDiff: getImageDiffs(expectedImage, actualImage) }
 }
 
 //! The Uint8Arrays weren't matching, so this function is used to get the exact pixel data and compare those
-async function extractPixelData (imageBitmap) {
+function extractPixelData (imageBitmap) {
   // Create a temporary offscreen canvas
   const offscreenCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height)
   const ctx = offscreenCanvas.getContext('2d')
@@ -561,4 +588,14 @@ function getImageDiffs (expected, actual) {
 function normalizeWS (...strings) {
   const newStrings = strings.map(string => string.replace(/\s+/g, ' ').trim())
   return (newStrings.length === 1) ? newStrings[0] : newStrings
+}
+
+function getSuffix (s) {
+  let n = s.indexOf(':')
+  if (n === -1) {
+    return s
+  } else {
+    if (n + 1 < s.length && s.charAt(n + 1) === ' ') n++
+    return s.substring(n + 1)
+  }
 }
