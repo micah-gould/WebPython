@@ -204,11 +204,11 @@ ReportBuilder.Tests = class {
     this.report = report
   }
 
-  addTest (output, expectedOutput, pf) {
-    this.tests += `${output}\n<span class=${pf}>${expectedOutput}</span>\n`
+  addTest (hidden = false, output, expectedOutput, pf) {
+    this.tests += `<span class=${hidden ? '' : pf}>${hidden ? 'HIDDEN' : output}</span>\nExpected: ${hidden ? 'HIDDEN' : expectedOutput}\n`
   }
 
   append () {
-    this.report.report += this.tests
+    this.report.report += (this.tests + '</pre>')
   }
 }

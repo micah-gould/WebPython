@@ -448,11 +448,11 @@ const tester = async ins => {
   for (let k = 0; k < expectedOutputs.length; k++) {
     const pf = (await check(expectedOutputs[k], outputs[k])).pf
     correct += pf === 'pass' ? 1 : 0
-    if (run?.hidden !== true) report.pf(pf)
-    tests.addTest(outputs[k], expectedOutputs[++k], pf)
+    report.pf(pf)
+    tests.addTest(run?.hidden, outputs[k], outputs[++k].split(':')[1], pf)
   }
   const total = outputs.length / 2 // TODO: check the Java
-  if (run?.hidden !== true) tests.append()
+  tests.append()
 
   return { correct, total }
 }
