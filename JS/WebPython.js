@@ -237,7 +237,7 @@ const processAsImages = async (expected, actual) => {
   const actualImage = await createImageBitmap(new Blob([actual]))
 
   const expectedImageData = await extractPixelData(expectedImage)
-  const actualImageData = await extractPixelData(actualImage) // TODO: Only show one image if they match.
+  const actualImageData = await extractPixelData(actualImage)
 
   return actualImageData.length === expectedImageData.length &&
   actualImageData.every((val, idx) => val === expectedImageData[idx]) //* Check that every pixel's RGBA values match
