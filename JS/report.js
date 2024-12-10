@@ -205,7 +205,7 @@ ReportBuilder.Tests = class {
   }
 
   addTest (hidden = false, output, expectedOutput, pf) {
-    this.tests += `<span class=${hidden ? '' : pf}>${hidden ? 'HIDDEN' : output}</span>\nExpected: ${hidden ? 'HIDDEN' : expectedOutput}\n`
+    this.tests += `<span class=${pf}>${hidden ? 'HIDDEN' : output}</span>\nExpected: ${hidden ? 'HIDDEN' : expectedOutput}\n`
   }
 
   append () {
