@@ -69,7 +69,8 @@ class ReportBuilder {
         <th>Name</th>
         <th>Arguments</th>
         <th>Actual</th>
-        <th>Expected</th>
+        <th id='expected-header'>Expected</th>
+        <th id='diff-header'>Difference</th>
       </tr>`)
   }
 
@@ -81,7 +82,8 @@ class ReportBuilder {
       <tr>
         <th>&#160;</th>
         <th>Actual</th>
-        <th>Expected</th>
+        <th id='expected-header'>Expected</th>
+        <th id='diff-header'>Difference</th>
       </tr>`)
   }
 
@@ -94,7 +96,9 @@ class ReportBuilder {
         <th>&#160;</th>
         <th>Name</th>
         ${args.map(arg => `<th>${arg.name}</th>`).join('\n')}
-        <th>Actual</th><th>Expected</th>
+        <th>Actual</th>
+        <th id='expected-header'>Expected</th>
+        <th id='diff-header'>Difference</th>
       </tr>`)
   }
 
@@ -129,16 +133,20 @@ class ReportBuilder {
         <td><pre>${hidden ? 'HIDDEN' : info}</pre>`
   }
 
-  closeRow (hidden = false, output, expectedOutput, diff) {
+  closeRow (hidden = false, pass, output, expectedOutput, diff) {
     const format = output =>
       output instanceof Uint8Array
         ? `<img src="${URL.createObjectURL(new Blob([output]))}">`
         : output
 
     this.report += `</td>
-        <td><pre>${hidden ? 'HIDDEN' : format(output)}</pre></td>
-        <td><pre>${hidden ? 'HIDDEN' : format(expectedOutput)}</pre></td>
-        ${diff ? `        <td><pre>${hidden ? 'HIDDEN' : format(diff)}</pre></td>` : ''}
+        <td><pre>${hidden ? 'HIDDEN' : format(output)}</pre>`
+    if (!pass) {
+      this.report += `</td>
+        <td class='expected'><pre>${hidden ? 'HIDDEN' : format(expectedOutput)}</pre></td>
+        ${diff ? `        <td class='diff'><pre>${hidden ? 'HIDDEN' : format(diff)}</pre></td>` : ''}`
+    }
+    this.report += `
       </tr>`
   }
 

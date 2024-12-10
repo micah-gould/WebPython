@@ -44,8 +44,8 @@
       // Get the current value of the 'test' query parameter
       const currentTestValue = currentUrl.searchParams.get('test');
 
-      // If 'test' is not defined or doesn't have a numeric value, initialize it to 'n'
-      const newTestValue = currentTestValue ? `${parseInt(currentTestValue) + 1}` : 1;
+      // If 'test' is not defined or doesn't have a numeric value, initialize it to 2
+      const newTestValue = currentTestValue ? `${parseInt(currentTestValue) + 1}` : 2;
 
       // Set the new URL with the updated query parameter
       currentUrl.searchParams.set('test', newTestValue);
@@ -61,8 +61,8 @@
       // Get the current value of the 'test' query parameter
       const currentTestValue = currentUrl.searchParams.get('test');
 
-      // If 'test' is not defined or doesn't have a numeric value, initialize it to 'n'
-      const newTestValue = currentTestValue ? `${parseInt(currentTestValue) - 1}` : 1;
+      // If 'test' is not defined or doesn't have a numeric value, initialize it to 2
+      const newTestValue = currentTestValue ? `${parseInt(currentTestValue) - 1}` : 2;
 
       // Set the new URL with the updated query parameter
       currentUrl.searchParams.set('test', newTestValue);

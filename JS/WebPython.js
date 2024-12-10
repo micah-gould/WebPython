@@ -304,6 +304,8 @@ const runDependents = async (name, otherFiles, conditions) => {
 
     await runCode(code)
     if (/^(.*(Test|_test)(\d*)\.py)$/.test(file)) await runCode('try:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())')
+
+    if (!/^(.*(Test|_test|Tester|_tester|Runner|_runner)(\d*)\.py)$/.test(file)) alert('Non test ran', file) //! here as a test for now. TEMPORARY
   }
 }
 
@@ -345,7 +347,7 @@ const processOutputs = async (run, filesAndImages, attributes, report, name, arg
     report.pf(pf)
     if (name) report.info(run?.hidden, name)
     if (args) args.forEach(arg => report.info(run?.hidden, arg.value ?? arg))
-    report.closeRow(run?.hidden, output, expectedOutput, imageDiff)
+    report.closeRow(run?.hidden, pf === 'pass', output, expectedOutput, imageDiff)
 
     total++
   }
@@ -462,6 +464,24 @@ window.addEventListener('load', async () => {
     .join('\n') // Set the description of the task
   OUTPUT = document.getElementById('output') // Get the text area for the output
   await setupPyodide()
+
+  const targetDiv = document.querySelector('.codecheck-submit-response')
+
+  // Create a MutationObserver
+  const observer = new MutationObserver((mutationsList) => {
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'childList') {
+        const diffCells = document.querySelectorAll(`${targetDiv.tagName} .diff`)
+        if (diffCells.length === 0) document.getElementById('diff-header')?.classList?.add('hidden')
+
+        const expectedCells = document.querySelectorAll(`${targetDiv.tagName} .expected`)
+        if (expectedCells.length === 0) document.getElementById('expected-header')?.classList?.add('hidden')
+      }
+    }
+  })
+
+  // Configure the observer to look for changes in child nodes
+  observer.observe(targetDiv, { childList: true })
 })
 
 //* Code starts here when it is called from horstmann_codecheck.js
