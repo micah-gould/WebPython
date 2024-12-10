@@ -6,7 +6,7 @@
 
 let stdoutOLD = [] // Array to store all past outputs (by line)
 let stderrOLD = [] // Array to store all past errors (by line)
-let OUTPUT, worker, fileNames, timeoutId, clicked // Variables that need to be global
+let OUTPUT, worker, fileNames, timeoutId // Variables that need to be global
 const imageEndings = ['apng', 'avif', 'bmp', 'cur', 'gif', 'ico', 'jfif', 'jpeg', 'jpg', 'pjp', 'pjpeg', 'png', 'svg', 'webp']
 
 // Function that updates the value of the output and resize it
@@ -315,7 +315,7 @@ const checkRequiredForbidden = (file, conditions) => {
   let message = null
 
   conditions?.forEach(test => {
-    if (file !== params[test.path]) return
+    if (file !== params[test.path]) return // TODO: what is this?
 
     const matches = new RegExp(test.regex).test(file)
     if ((test?.forbidden && matches) || (!test?.forbidden && !matches)) {
@@ -451,7 +451,7 @@ const tester = async ins => {
     if (run?.hidden !== true) report.pf(pf)
     tests.addTest(outputs[k], expectedOutputs[++k], pf)
   }
-  total = outputs.length / 2 // TODO: check the Java
+  const total = outputs.length / 2 // TODO: check the Java
   if (run?.hidden !== true) tests.append()
 
   return { correct, total }
