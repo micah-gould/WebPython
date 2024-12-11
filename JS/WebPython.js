@@ -76,7 +76,7 @@ async function python (setup, params) {
 
       // Run the correct case
       const functions = { call, run, sub, unitTest, tester }
-      const { correct: newCorrect, total: newTotal } = await functions[section.type]?.({
+      const { correct: newCorrect, total: newTotal, error } = await functions[section.type]?.({
         code,
         run: currentRun,
         name,
@@ -86,6 +86,7 @@ async function python (setup, params) {
         end: section.runs.indexOf(currentRun) === section.runs.length - 1,
         report
       }) ?? console.error('Function not found') //! Unknown test case type
+      if (error) return { report: error }
       correct += newCorrect
       total += newTotal
     }
@@ -312,7 +313,7 @@ async function unitTest (ins) {
 }
 
 // Function that runs the "tester" case
-async function tester (ins) { // TODO: Change logic to account for missing "Expected: ..."
+async function tester (ins) {
   const { run, name, otherFiles, conditions, report } = ins
 
   if (run?.hidden !== true) report.newTester()
@@ -323,17 +324,14 @@ async function tester (ins) { // TODO: Change logic to account for missing "Expe
   const outputs = output.split('\n')
   const matches = new Set()
   const mismatches = new Set()
-  const epextedTests = output.match(/expected/gi).length
+  const expectedTests = output.match(/expected/gi).length
   let actualTests = 0
 
   for (let i = 0; i < outputs.length; i++) {
     if (outputs[i].split(':')[0].toLowerCase() !== 'expected') continue
     actualTests++
     if (i === 0) {
-      tests.addTest(run?.hidden, '', 'No actual value for "Expected: ..." in line 1\n', 'fail')
-      mismatches.add(0)
-      report.pf('fail')
-      continue
+      return { error: '<body>No actual value for "Expected: ..." in line 1</body>' }
     }
     const expected = getSuffix(outputs[i])
     const actual = outputs[i - 1]
@@ -351,8 +349,10 @@ async function tester (ins) { // TODO: Change logic to account for missing "Expe
     tests.addTest(run?.hidden, actual, expected, pf)
   }
 
+  if (actualTests !== expectedTests) return { error: '<body>Program exited before all expected values were printed.</body>' }
+
   const correct = matches.size
-  const total = epextedTests
+  const total = expectedTests
   tests.append()
 
   return { correct, total }
@@ -372,14 +372,13 @@ async function runDependents (name, otherFiles, conditions) {
     if (checks.result === true) {
       updateTextArea(checks.message ?? '', OUTPUT)
       break
-    } // TODO: can this be less fragaile
-    if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(code) &&
-        !(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(code)) continue
+    }
+    // TODO: can this be less fragaile
+    if (!(new RegExp(`from\\s+${fileName}\\s+import\\s+\\S+`, 'g')).test(code) && //* Ignore files that don't call the mainclass.
+        !(new RegExp(`^(import\\s+.*?)\\b${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(\\s*,)?`, 'gm')).test(code)) continue //! Could there be other ways files are called??
 
-    await runCode(code)
+    if (/^(.*(Test|_test|Tester|_tester|Runner|_runner)(\d*)\.py)$/.test(file)) await runCode(code)
     if (/^(.*(Test|_test)(\d*)\.py)$/.test(file)) await runCode('try:\n  unittest.main()\nexcept SystemExit as e:\n  print(sys.stdout.getvalue())')
-
-    if (!/^(.*(Test|_test|Tester|_tester|Runner|_runner)(\d*)\.py)$/.test(file)) alert('Non test ran', file) //! here as a test for now. TEMPORARY
   }
 }
 
