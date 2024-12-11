@@ -130,7 +130,7 @@ class ReportBuilder {
 
   info (hidden = false, info) {
     this.report += `</td>
-        <td><pre>${hidden ? 'HIDDEN' : info}</pre>`
+        <td><pre>${hidden ? '[Hidden]' : info}</pre>`
   }
 
   closeRow (ins) {
@@ -141,11 +141,11 @@ class ReportBuilder {
         : output
 
     this.report += `</td>
-        <td><pre>${hidden ? 'HIDDEN' : format(actual)}</pre>`
+        <td><pre>${hidden ? '[Hidden]' : format(actual)}</pre>`
     if (!pass) {
       this.report += `</td>
-        <td class='expected'><pre>${hidden ? 'HIDDEN' : format(expexcted)}</pre></td>
-        ${imageDiff ? `        <td class='diff'><pre>${hidden ? 'HIDDEN' : format(imageDiff)}</pre></td>` : ''}`
+        <td class='expected'><pre>${hidden ? '[Hidden]' : format(expexcted)}</pre></td>
+        ${imageDiff ? `        <td class='diff'><pre>${hidden ? '[Hidden]' : format(imageDiff)}</pre></td>` : ''}`
     }
     this.report += `
       </tr>`
@@ -206,7 +206,7 @@ ReportBuilder.Tests = class {
   }
 
   addTest (hidden = false, output, expectedOutput, pf) {
-    this.tests += `<span class=${pf}>${hidden ? 'HIDDEN' : output}</span>\nExpected: ${hidden ? 'HIDDEN' : expectedOutput}\n`
+    this.tests += `<span class=${pf}>${hidden ? '[Hidden]' : output}</span>\nExpected: ${hidden ? '[Hidden]' : expectedOutput}\n`
   }
 
   append () {

@@ -182,7 +182,7 @@ async function getOutput (hidden = false) {
   stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
   if (output === '' && err === '') return OUTPUT.value
-  updateTextArea(hidden ? '\nHIDDEN' : `\n${output}`, OUTPUT)
+  updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`, OUTPUT)
   if (!(err.includes('SystemExit')
   )) updateTextArea(`\n${err}`, OUTPUT)
   return { output, err }
