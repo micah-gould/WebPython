@@ -396,7 +396,7 @@ async function processOutputs (ins) {
   let correct = 0
   let total = 0
   for (let z = -1; z < (filesAndImages?.length ?? 0); z++) {
-    const { expected, actual } = await getCheckValues({ run, file: filesAndImages[z], imageName: await getImageName(z) })
+    const { expected, actual } = await getCheckValues({ run, file: filesAndImages[z], getName: await getImageName() })
     const { pf, imageDiff } = await check({ actual, expected, attributes })
     if (pf === undefined) continue
     correct += pf === 'pass' ? 1 : 0
@@ -412,20 +412,26 @@ async function processOutputs (ins) {
   return { correct, total }
 }
 
-async function getImageName (z) { // TODO: will be fixed
-  const newFileNames = (await runWorker({ type: 'readcwd' })).files.filter(file => imageEndings.includes(file.split('.')[1])).filter(file => !fileNames.includes(file))
-  const images = fileNames.filter(file => imageEndings.includes(file.split('.')[1]))
-  return newFileNames.length > z ? newFileNames[z] : images.length > z ? images[z] : 'noFile'
+async function getImageName () { // TODO: will be fixed
+  const images = [...new Set(fileNames
+    .filter(file => imageEndings.includes(file.split('.')[1]))
+    .concat((await runWorker({ type: 'readcwd' }))
+      .files
+      .filter(file => (imageEndings.includes(file.split('.')[1]) && !fileNames.includes(file)))))]
+  console.log(images)
+  return () => images.pop()
 }
 
 // Function that handles if the output is a string, and file, or an image
 async function getCheckValues (ins) {
-  const { run, file, imageName } = ins
+  const { run, file, getName } = ins
   const expected = file?.data !== undefined
     ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
     : (file?.name !== undefined
         ? file?.value
         : run?.output)?.replace(/^\n+|\n+$/g, '') ?? ''
+
+  const imageName = expected instanceof Uint8Array ? getName() : 'NoFile'
 
   const actual = (await runWorker({ type: 'analyzePath', fileName: imageName })).exists
     ? (await runWorker({ type: 'readFile', fileName: imageName })).file
@@ -434,7 +440,6 @@ async function getCheckValues (ins) {
             ? (await runWorker({ type: 'readFile', fileName: file.name, encoding: 'utf8' })).file
             : 'No File Found'
         : (await getOutput(run?.hidden))?.output ?? (await getOutput(run?.hidden))).replace(/^\n+|\n+$/g, '')
-
   return { expected, actual }
 }
 
@@ -473,8 +478,8 @@ async function check (ins) {
   }
 
   const maxlen = attributes?.maxoutputlen || 100000
-  expected = expected?.slice(0, maxlen).trim()
-  actual = actual?.slice(0, maxlen).trim()
+  expected = expected?.slice(0, maxlen)?.trim()
+  actual = actual?.slice(0, maxlen)?.trim()
   return (attributes?.ignorespace
     ? expected.equalsIgnoreCase(actual)
     : expected === actual)
