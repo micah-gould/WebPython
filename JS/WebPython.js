@@ -4,9 +4,15 @@
 !   no-unused-vars is off because the function Python is written in this file but called from another
 */
 
-let stdoutOLD = [] // Array to store all past outputs (by line)
-let stderrOLD = [] // Array to store all past errors (by line)
-let OUTPUT, worker, fileNames, timeoutId // Variables that need to be global
+const appState = {
+  stdoutOLD: [], // Array to store all past outputs (by line)
+  stderrOLD: [], // Array to store all past errors (by line)
+  OUTPUT: undefined,
+  worker: undefined,
+  timeoutId: undefined,
+  hasReturned: false
+} // Variables that need to be global
+
 const imageEndings = ['apng', 'avif', 'bmp', 'cur', 'gif', 'ico', 'jfif', 'jpeg', 'jpg', 'pjp', 'pjpeg', 'png', 'svg', 'webp']
 
 // Once the window is loaded the decription can be set and the text area for the output can be retrived
@@ -14,13 +20,20 @@ window.addEventListener('load', async () => {
   document.getElementById('description').innerHTML += window.horstmann_codecheck.setup
     .map(a => (a?.description ?? ''))
     .join('\n') // Set the description of the task
-  OUTPUT = document.getElementById('output') // Get the text area for the output
+  appState.OUTPUT = document.getElementById('output') // Get the text area for the output
   await setupPyodide()
 
   const targetDiv = document.querySelector('.codecheck-submit-response')
 
+  const debounce = (func) => {
+    let timeout
+    return (...args) => {
+      clearTimeout(timeout)
+      if (appState.hasReturned) timeout = setTimeout(() => func(...args), 1)
+    }
+  }
   // Create a MutationObserver
-  const observer = new MutationObserver((mutationsList) => {
+  const observer = new MutationObserver(debounce((mutationsList) => {
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList') {
         const diffCells = document.querySelectorAll(`${targetDiv.tagName} .diff`)
@@ -30,7 +43,7 @@ window.addEventListener('load', async () => {
         if (expectedCells.length === 0) document.getElementById('expected-header')?.classList?.add('hidden')
       }
     }
-  })
+  }))
 
   // Configure the observer to look for changes in child nodes
   observer.observe(targetDiv, { childList: true })
@@ -38,10 +51,10 @@ window.addEventListener('load', async () => {
 
 //* Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
-  const hasBeenLoaded = (await runWorker({ type: 'readcwd' })).files.length > 0 //! If pyodide has been run, the users files would have been loaded
-  if (hasBeenLoaded) await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
+  if (appState.hasReturned) await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
+  appState.hasReturned = false
 
-  updateTextArea('', OUTPUT, false) // Clear the output
+  updateTextArea('', appState.OUTPUT, false) // Clear the output
 
   const report = new ReportBuilder() // Create a new HTML report to return
 
@@ -53,16 +66,16 @@ async function python (setup, params) {
     const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) } // Object of all non-editible files
     const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.'))) // Object of all files including student files
 
-    fileNames = await loadFiles(allFiles) // Load all files in the pyodide file system
+    await loadFiles(allFiles) // Load all files in the pyodide file system
 
     // Iterrate over runs array
     for (const currentRun of section.runs) {
       const name = currentRun.mainclass // Get the name of the file to run
       const code = allFiles[name] // Get python code
 
-      const checks = checkRequiredForbidden(code, setup?.conditions) // Check if the user's code follows the required and forbidden riles
+      const checks = checkRequiredForbidden(code, setup?.conditions, allFiles) // Check if the user's code follows the required and forbidden riles
       if (checks.result === true) {
-        updateTextArea(checks.message ?? '', OUTPUT) // Post the error message to the user
+        updateTextArea(checks.message ?? '', appState.OUTPUT) // Post the error message to the user
         break
       }
 
@@ -84,7 +97,8 @@ async function python (setup, params) {
         attributes: setup?.attributes,
         conditions: setup?.conditions,
         end: section.runs.indexOf(currentRun) === section.runs.length - 1,
-        report
+        report,
+        allFiles
       }) ?? console.error('Function not found') //! Unknown test case type
       if (error) return { report: error }
       correct += newCorrect
@@ -105,12 +119,14 @@ async function python (setup, params) {
     button.classList.remove('disabled') // Remove disabled styling
   })
 
+  appState.hasReturned = true
+
   return { report: report.report }
 }
 
 // Function that sets up Pyodide
 async function setupPyodide () {
-  const firstLoad = worker === undefined
+  const firstLoad = appState.worker === undefined
 
   const buttons = document.querySelectorAll('.codecheckSubmit span')
 
@@ -119,16 +135,16 @@ async function setupPyodide () {
     button.classList.add('disabled')
   })
 
-  stdoutOLD = []
-  stderrOLD = []
-  updateTextArea('Pyodide loading', OUTPUT, false) // Inform the user that Pyodide is loading
+  appState.stdoutOLD = []
+  appState.stderrOLD = []
+  updateTextArea('Pyodide loading', appState.OUTPUT, false) // Inform the user that Pyodide is loading
 
   const START = Date.now() // Get the current time
 
   try {
-    worker = new Worker('JS/pyodideWorker.js' /* path from the HTML file */) // Load Pyodide
+    appState.worker = new Worker('JS/pyodideWorker.js' /* path from the HTML file */) // Load Pyodide
     const END = (await runWorker({ type: 'setup' })).endTime
-    updateTextArea(`\nPyodide loaded in ${END - START}ms`, OUTPUT) // Inform the user that Pyodide has loaded
+    updateTextArea(`\nPyodide loaded in ${END - START}ms`, appState.OUTPUT) // Inform the user that Pyodide has loaded
   } catch (err) {
     await handleError(err)
   }
@@ -147,12 +163,12 @@ function updateTextArea (text, area, append = true) {
   area.style.height = `${area.scrollHeight}px`
 }
 
-//! Need to run code through this function and not "worker.postMessage()"
+//! Need to run code through this function and not "appState.worker.postMessage()"
 async function runWorker (code) {
-  worker.postMessage(code) //* Post the message to the worker
+  appState.worker.postMessage(code) //* Post the message to the worker
   const result = await new Promise(resolve => { //* Wait for the worker to finsih processing the message
-    worker.onmessage = event => {
-      clearTimeout(timeoutId) //* If the code ran within the maxtime, clear the timeout
+    appState.worker.onmessage = event => {
+      clearTimeout(appState.timeoutId) //* If the code ran within the maxtime, clear the timeout
       resolve(event.data)
     }
   })
@@ -162,7 +178,7 @@ async function runWorker (code) {
 //! Function that handles all python errors
 async function handleError (err) {
   if (err.type !== 'SystemExit') { //* Ignore a system.exit()
-    updateTextArea(`${err}\n${(await getOutput()).err}`, OUTPUT, false)
+    updateTextArea(`${err}\n${(await getOutput()).err}`, appState.OUTPUT, false)
   }
 }
 
@@ -171,30 +187,30 @@ async function getOutput (hidden = false) {
   const output = (await runCode('sys.stdout.getvalue()'))
     .result
     .split('\n')
-    .slice(stdoutOLD.length, -1)
+    .slice(appState.stdoutOLD.length, -1)
     .join('\n') // Get the new outputs
-  stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+  appState.stdoutOLD = appState.stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
 
   const err = (await runCode('sys.stderr.getvalue()'))
     .result
     .split('\n')
-    .slice(stderrOLD.length, -1)
+    .slice(appState.stderrOLD.length, -1)
     .join('\n') // Get the new errors
-  stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
+  appState.stderrOLD = appState.stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
-  if (output === '' && err === '') return OUTPUT.value
-  updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`, OUTPUT)
+  if (output === '' && err === '') return appState.OUTPUT.value
+  updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`, appState.OUTPUT)
   if (!(err.includes('SystemExit')
-  )) updateTextArea(`\n${err}`, OUTPUT)
+  )) updateTextArea(`\n${err}`, appState.OUTPUT)
   return { output, err }
 }
 
 // Function that runs python code
 async function runCode (code, timeout = 30000) {
-  clearTimeout(timeoutId) //* Reset the timeout
-  timeoutId = setTimeout(() => {
-    worker.terminate() //! Stop the worker if it takes too long
-    updateTextArea(`Python code execution timed out after ${timeout} seconds`, OUTPUT, false)
+  clearTimeout(appState.timeoutId) //* Reset the timeout
+  appState.timeoutId = setTimeout(() => {
+    appState.worker.terminate() //! Stop the worker if it takes too long
+    updateTextArea(`Python code execution timed out after ${timeout} seconds`, appState.OUTPUT, false)
     document.getElementsByClassName('codecheck-submit-response')[0].textContent = 'Max execution time exceeded'
   }, timeout)
   try {
@@ -221,12 +237,12 @@ async function loadFiles (files) {
 }
 
 // Function that check is the user's code follows all the required and forbiden rules
-function checkRequiredForbidden (file, conditions) {
+function checkRequiredForbidden (file, conditions, allFiles) { // FIXME: find a testcase and rewrite this function
   let result = false
   let message = null
 
   conditions?.forEach(test => {
-    if (file !== params[test.path]) return // TODO: what is this?
+    if (file !== allFiles[test.path]) return
 
     const matches = new RegExp(test.regex).test(file)
     if ((test?.forbidden && matches) || (!test?.forbidden && !matches)) {
@@ -240,17 +256,17 @@ function checkRequiredForbidden (file, conditions) {
 
 // Function that runs the "call" case
 async function call (ins) {
-  const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
+  const { code, run, name, otherFiles, attributes, end, conditions, report, allFiles } = ins
   report.newCall()
 
   await runCode(code, attributes?.timeout)
-  await runDependents(name, otherFiles, conditions)
+  await runDependents(name, otherFiles, conditions, allFiles)
 
   const func = run.caption // Get function name
   const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
   await runCode(`print(${func}(${input}))`, attributes?.timeout) // Run each testcase
 
-  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, func, input: [input] })
+  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, func, input: [input], allFiles })
 
   if (end) report.closeTable()
   return { correct, total }
@@ -258,7 +274,7 @@ async function call (ins) {
 
 // Function that runs the "run" case
 async function run (ins) {
-  const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
+  const { code, run, name, otherFiles, attributes, end, conditions, report, allFiles } = ins
 
   report.newRun(name)
 
@@ -270,9 +286,9 @@ async function run (ins) {
   if (attributes?.interleave ?? true) await interleave()
 
   await runCode(code, attributes?.timeout) // Run each testcase
-  await runDependents(name, otherFiles, conditions)
+  await runDependents(name, otherFiles, conditions, allFiles)
 
-  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report })
+  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, allFiles })
 
   if (end) report.closeTable()
   return { correct, total }
@@ -280,7 +296,7 @@ async function run (ins) {
 
 // Function that runs the "sub" case
 async function sub (ins) {
-  const { code, run, name, otherFiles, attributes, end, conditions, report } = ins
+  const { code, run, name, otherFiles, attributes, end, conditions, report, allFiles } = ins
 
   const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
   report.newSub(args)
@@ -289,9 +305,9 @@ async function sub (ins) {
   const newCode = args.reduce((acc, arg) => acc.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`), code)
 
   await runCode(newCode, attributes?.timeout) // Run each testcase
-  await runDependents(name, otherFiles, conditions)
+  await runDependents(name, otherFiles, conditions, allFiles)
 
-  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, name, args })
+  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, name, args, allFiles })
 
   if (end) report.closeTable()
   return { correct, total }
@@ -299,11 +315,11 @@ async function sub (ins) {
 
 // Function that runs the "unitTest" case
 async function unitTest (ins) {
-  const { run, name, otherFiles, conditions, report } = ins
+  const { run, name, otherFiles, conditions, report, allFiles } = ins
 
   report.newUnitTest()
 
-  await runDependents(name, otherFiles, conditions)
+  await runDependents(name, otherFiles, conditions, allFiles)
   const total = (run.output?.split('\n')?.[0]?.match(/\./g) || []).length
   const correct = ((await getOutput(run?.hidden)).err?.split('\n')?.[0]?.match(/\./g) || []).length
   const pf = correct === total ? 'pass' : 'fail'
@@ -314,11 +330,11 @@ async function unitTest (ins) {
 
 // Function that runs the "tester" case
 async function tester (ins) {
-  const { run, name, otherFiles, conditions, report } = ins
+  const { run, name, otherFiles, conditions, report, allFiles } = ins
 
   if (run?.hidden !== true) report.newTester()
 
-  await runDependents(name, otherFiles, conditions)
+  await runDependents(name, otherFiles, conditions, allFiles)
   const tests = report.newTests()
   const output = (await getCheckValues(run)).actual
   const outputs = output.split('\n')
@@ -359,7 +375,7 @@ async function tester (ins) {
 }
 
 // Function that runs all files that call the user's file
-async function runDependents (name, otherFiles, conditions) {
+async function runDependents (name, otherFiles, conditions, allFiles) {
   // Run any other needed files
   if (Object.keys(otherFiles).length === 0) return
 
@@ -368,9 +384,9 @@ async function runDependents (name, otherFiles, conditions) {
   // Remove any importing of the user's file because it's functions were initialized
   for (const file in otherFiles) {
     const code = otherFiles[file]
-    const checks = checkRequiredForbidden(code, conditions)
+    const checks = checkRequiredForbidden(code, conditions, allFiles)
     if (checks.result === true) {
-      updateTextArea(checks.message ?? '', OUTPUT)
+      updateTextArea(checks.message ?? '', appState.OUTPUT)
       break
     }
     // TODO: can this be less fragaile
@@ -392,11 +408,11 @@ function getFilesAndImages (files, images) {
 
 // Function that processes outputs
 async function processOutputs (ins) {
-  const { run, filesAndImages, attributes, report, name, args } = ins
+  const { run, filesAndImages, attributes, report, name, args, allFiles } = ins
   let correct = 0
   let total = 0
   for (let z = -1; z < (filesAndImages?.length ?? 0); z++) {
-    const { expected, actual } = await getCheckValues({ run, file: filesAndImages[z], getName: await getImageName() })
+    const { expected, actual } = await getCheckValues({ run, file: filesAndImages[z], getName: await getImageName(Object.keys(allFiles)) })
     const { pf, imageDiff } = await check({ actual, expected, attributes })
     if (pf === undefined) continue
     correct += pf === 'pass' ? 1 : 0
@@ -412,33 +428,35 @@ async function processOutputs (ins) {
   return { correct, total }
 }
 
-async function getImageName () { // TODO: will be fixed
+async function getImageName (fileNames) { // TODO: will be fixed
   const images = [...new Set(fileNames
     .filter(file => imageEndings.includes(file.split('.')[1]))
     .concat((await runWorker({ type: 'readcwd' }))
       .files
       .filter(file => (imageEndings.includes(file.split('.')[1]) && !fileNames.includes(file)))))]
-  console.log(images)
   return () => images.pop()
 }
 
 // Function that handles if the output is a string, and file, or an image
 async function getCheckValues (ins) {
   const { run, file, getName } = ins
+
   const expected = file?.data !== undefined
     ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0))
     : (file?.name !== undefined
         ? file?.value
         : run?.output)?.replace(/^\n+|\n+$/g, '') ?? ''
 
-  const imageName = expected instanceof Uint8Array ? getName() : 'NoFile'
+  const imageName = expected instanceof Uint8Array ? getName() : new Error('No Image Name')
 
-  const actual = (await runWorker({ type: 'analyzePath', fileName: imageName })).exists
-    ? (await runWorker({ type: 'readFile', fileName: imageName })).file
+  const actual = expected instanceof Uint8Array
+    ? (await runWorker({ type: 'analyzePath', fileName: imageName })).exists
+        ? (await runWorker({ type: 'readFile', fileName: imageName })).file
+        : new Error('No Image Found')
     : (file?.name !== undefined
         ? (await runWorker({ type: 'analyzePath', fileName: file.name })).exists
             ? (await runWorker({ type: 'readFile', fileName: file.name, encoding: 'utf8' })).file
-            : 'No File Found'
+            : new Error('No File Found')
         : (await getOutput(run?.hidden))?.output ?? (await getOutput(run?.hidden))).replace(/^\n+|\n+$/g, '')
   return { expected, actual }
 }
