@@ -5,8 +5,6 @@
 */
 
 const appState = {
-  stdoutOLD: [], // Array to store all past outputs (by line)
-  stderrOLD: [], // Array to store all past errors (by line)
   OUTPUT: undefined,
   worker: undefined,
   timeoutId: undefined,
@@ -14,6 +12,38 @@ const appState = {
 } // Variables that need to be global
 
 const imageEndings = ['apng', 'avif', 'bmp', 'cur', 'gif', 'ico', 'jfif', 'jpeg', 'jpg', 'pjp', 'pjpeg', 'png', 'svg', 'webp']
+
+//* Function to setup the closure for getOutput so that stdoutOLD and stderrOLD will not be global variables
+function createGetOutput () {
+  let stdoutOLD = [] // Array to store all past outputs (by line)
+  let stderrOLD = [] // Array to store all past errors (by line)
+  // Function that gets the output of the python code
+  return async function (hidden = false) {
+    const preOutput = (await runCode('sys.stdout.getvalue()')).result.split('\n')
+
+    if (preOutput.length < stdoutOLD.length) stdoutOLD = []
+
+    const output = preOutput.slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
+
+    stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+
+    const preError = (await runCode('sys.stderr.getvalue()')).result.split('\n')
+
+    if (preError.length < stderrOLD.length) stdoutOLD = []
+
+    const err = preError.slice(stderrOLD.length, -1).join('\n') // Get the new errors
+
+    stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
+
+    if (output === '' && err === '') return appState.OUTPUT.value
+    updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`, appState.OUTPUT)
+    if (!(err.includes('SystemExit')
+    )) updateTextArea(`\n${err}`, appState.OUTPUT)
+    return { output, err }
+  }
+}
+
+const getOutput = createGetOutput()
 
 // Once the window is loaded the decription can be set and the text area for the output can be retrived
 window.addEventListener('load', async () => {
@@ -180,29 +210,6 @@ async function handleError (err) {
   if (err.type !== 'SystemExit') { //* Ignore a system.exit()
     updateTextArea(`${err}\n${(await getOutput()).err}`, appState.OUTPUT, false)
   }
-}
-
-// Function that gets the output of the python code
-async function getOutput (hidden = false) {
-  const output = (await runCode('sys.stdout.getvalue()'))
-    .result
-    .split('\n')
-    .slice(appState.stdoutOLD.length, -1)
-    .join('\n') // Get the new outputs
-  appState.stdoutOLD = appState.stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
-
-  const err = (await runCode('sys.stderr.getvalue()'))
-    .result
-    .split('\n')
-    .slice(appState.stderrOLD.length, -1)
-    .join('\n') // Get the new errors
-  appState.stderrOLD = appState.stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
-
-  if (output === '' && err === '') return appState.OUTPUT.value
-  updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`, appState.OUTPUT)
-  if (!(err.includes('SystemExit')
-  )) updateTextArea(`\n${err}`, appState.OUTPUT)
-  return { output, err }
 }
 
 // Function that runs python code
