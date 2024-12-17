@@ -17,6 +17,7 @@ const imageEndings = ['apng', 'avif', 'bmp', 'cur', 'gif', 'ico', 'jfif', 'jpeg'
 function createGetOutput () {
   let stdoutOLD = [] // Array to store all past outputs (by line)
   let stderrOLD = [] // Array to store all past errors (by line)
+
   // Function that gets the output of the python code
   return async function (hidden = false) {
     const preOutput = (await runCode('sys.stdout.getvalue()')).result.split('\n')
@@ -37,8 +38,7 @@ function createGetOutput () {
 
     if (output === '' && err === '') return appState.OUTPUT.value
     updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`, appState.OUTPUT)
-    if (!(err.includes('SystemExit')
-    )) updateTextArea(`\n${err}`, appState.OUTPUT)
+    if (!(err.includes('SystemExit'))) updateTextArea(`\n${err}`, appState.OUTPUT)
     return { output, err }
   }
 }
