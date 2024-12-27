@@ -329,9 +329,8 @@ async function unitTest (ins) {
   await runDependents(name, otherFiles, conditions, allFiles)
   const total = (run.output?.split('\n')?.[0]?.match(/\./g) || []).length
   const correct = ((await getOutput(run?.hidden)).err?.split('\n')?.[0]?.match(/\./g) || []).length
-  const pf = correct === total ? 'pass' : 'fail'
 
-  report.pf(pf)
+  report.pf(correct === total)
   return { correct, total }
 }
 
@@ -345,8 +344,7 @@ async function tester (ins) {
   const tests = report.newTests()
   const output = (await getCheckValues(run)).actual
   const outputs = output.split('\n')
-  const matches = new Set()
-  const mismatches = new Set()
+  let correct = 0
   const expectedTests = output.match(/expected/gi).length
   let actualTests = 0
 
@@ -360,21 +358,16 @@ async function tester (ins) {
     const actual = outputs[i - 1]
     // The second comparison is needed if actual has no prefix
     // but a colon
-    let pf = (await check({ actual: getSuffix(actual), expected })).pf
-    if (pf === 'fail') pf = (await check({ actual, expected })).pf
-    if (pf === 'pass') {
-      report.pf('pass')
-      matches.add(i)
-    } else {
-      mismatches.add(i)
-      report.pf('fail')
-    }
-    tests.addTest(run?.hidden, actual, expected, pf)
+    let pass = (await check({ actual: getSuffix(actual), expected })).pass
+    if (!pass) pass = (await check({ actual, expected })).pass
+    report.pf(pass)
+    if (pass) correct++
+
+    tests.addTest(run?.hidden, actual, expected, pass)
   }
 
   if (actualTests !== expectedTests) return { error: '<body>Program exited before all expected values were printed.</body>' }
 
-  const correct = matches.size
   const total = expectedTests
   tests.append()
 
@@ -420,15 +413,15 @@ async function processOutputs (ins) {
   let total = 0
   for (let z = -1; z < (filesAndImages?.length ?? 0); z++) {
     const { expected, actual } = await getCheckValues({ run, file: filesAndImages[z], getName: await getImageName(Object.keys(allFiles)) })
-    const { pf, imageDiff } = await check({ actual, expected, attributes })
-    if (pf === undefined) continue
-    correct += pf === 'pass' ? 1 : 0
+    const { pass, imageDiff } = await check({ actual, expected, attributes })
+    if (pass === undefined) continue
+    correct += pass
 
     report.newRow()
-    report.pf(pf)
+    report.pf(pass)
     if (name) report.info(run?.hidden, name)
     if (args) args.forEach(arg => report.info(run?.hidden, arg.value ?? arg))
-    report.closeRow({ actual, expected, imageDiff, hidden: run?.hidden, pass: pf === 'pass' })
+    report.closeRow({ actual, expected, imageDiff, hidden: run?.hidden, pass })
 
     total++
   }
@@ -489,7 +482,7 @@ input = custom_input`)
 // Function that compares the given output with the expected output and update all nessasary variables
 async function check (ins) {
   let { actual, expected, attributes } = ins
-  if (actual === '') return { pf: undefined }
+  if (actual === '') return { pass: undefined }
 
   if (expected instanceof Uint8Array && actual instanceof Uint8Array) return await processAsImages(expected, actual)
 
@@ -499,7 +492,7 @@ async function check (ins) {
 
   if (!Number.isNaN(+expected) && !Number.isNaN(+actual)) {
     const tolerance = attributes?.tolerance || 1e-6
-    return Math.abs(+expected - +actual) <= tolerance ? { pf: 'pass' } : { pf: 'fail' }
+    return Math.abs(+expected - +actual) <= tolerance ? { pass: true } : { pass: false }
   }
 
   const maxlen = attributes?.maxoutputlen || 100000
@@ -508,8 +501,8 @@ async function check (ins) {
   return (attributes?.ignorespace
     ? expected.equalsIgnoreCase(actual)
     : expected === actual)
-    ? { pf: 'pass' }
-    : { pf: 'fail' }
+    ? { pass: true }
+    : { pass: false }
 }
 
 async function processAsImages (expected, actual) {
@@ -521,8 +514,8 @@ async function processAsImages (expected, actual) {
 
   return actualImageData.length === expectedImageData.length &&
   actualImageData.every((val, idx) => val === expectedImageData[idx]) //* Check that every pixel's RGBA values match
-    ? { pf: 'pass' }
-    : { pf: 'fail', imageDiff: getImageDiffs(expectedImage, actualImage) }
+    ? { pass: true }
+    : { pass: false, imageDiff: getImageDiffs(expectedImage, actualImage) }
 }
 
 //! The Uint8Arrays weren't matching, so this function is used to get the exact pixel data and compare those

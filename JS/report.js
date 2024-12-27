@@ -124,7 +124,8 @@ class ReportBuilder {
         <td>`
   }
 
-  pf (pf) {
+  pf (pass) {
+    const pf = pass ? 'pass' : 'fail'
     this.report += `<span class=${pf}>${pf}</span> `
   }
 
@@ -144,8 +145,11 @@ class ReportBuilder {
         <td><pre>${hidden ? '[Hidden]' : format(actual)}</pre>`
     if (!pass) {
       this.report += `</td>
-        <td class='expected'><pre>${hidden ? '[Hidden]' : format(expexcted)}</pre></td>
-        ${imageDiff ? `        <td class='diff'><pre>${hidden ? '[Hidden]' : format(imageDiff)}</pre></td>` : ''}`
+        <td class='expected'><pre>${hidden ? '[Hidden]' : format(expexcted)}</pre>`
+      if (imageDiff) {
+        this.report += `</td>
+        <td class='diff'><pre>${hidden ? '[Hidden]' : format(imageDiff)}</pre></td>`
+      }
     }
     this.report += `
       </tr>`
@@ -205,7 +209,8 @@ ReportBuilder.Tests = class {
     this.report = report
   }
 
-  addTest (hidden = false, output, expectedOutput, pf) {
+  addTest (hidden = false, output, expectedOutput, pass) {
+    const pf = pass ? 'pass' : 'fail'
     this.tests += `<span class=${pf}>${hidden ? '[Hidden]' : output}</span>\nExpected: ${hidden ? '[Hidden]' : expectedOutput}\n`
   }
 
