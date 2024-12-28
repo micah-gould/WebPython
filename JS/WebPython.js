@@ -7,7 +7,6 @@
 const appState = {
   OUTPUT: undefined,
   worker: undefined,
-  timeoutId: undefined,
   hasReturned: false
 } // Variables that need to be global
 
@@ -37,8 +36,8 @@ function createGetOutput () {
     stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
     if (output === '' && err === '') return appState.OUTPUT.value
-    updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`, appState.OUTPUT)
-    if (!(err.includes('SystemExit'))) updateTextArea(`\n${err}`, appState.OUTPUT)
+    updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`)
+    if (!(err.includes('SystemExit'))) updateTextArea(`\n${err}`)
     return { output, err }
   }
 }
@@ -56,35 +55,45 @@ window.addEventListener('load', async () => {
   const targetDiv = document.querySelector('.codecheck-submit-response')
 
   const debounce = (func) => {
-    let timeout
+    let inProgress = false
     return (...args) => {
-      clearTimeout(timeout)
-      if (appState.hasReturned) timeout = setTimeout(() => func(...args), 1)
+      if (!inProgress || !appState.hasReturned) return
+      inProgress = true
+      func(...args)
+      inProgress = false
     }
   }
   // Create a MutationObserver
   const observer = new MutationObserver(debounce((mutationsList) => {
-    for (const mutation of mutationsList) {
-      if (mutation.type === 'childList') {
-        const diffCells = document.querySelectorAll(`${targetDiv.tagName} .diff`)
-        if (diffCells.length === 0) document.getElementById('diff-header')?.classList?.add('hidden')
+    const tagName = targetDiv.tagName
+    const diffSelector = `${tagName} .diff`
+    const expectedSelector = `${tagName} .expected`
 
-        const expectedCells = document.querySelectorAll(`${targetDiv.tagName} .expected`)
-        if (expectedCells.length === 0) document.getElementById('expected-header')?.classList?.add('hidden')
+    mutationsList.forEach((mutation) => {
+      if (mutation.type === 'childList') {
+        updateHeaderVisibility(diffSelector, 'diff-header')
+        updateHeaderVisibility(expectedSelector, 'expected-header')
       }
-    }
+    })
   }))
 
   // Configure the observer to look for changes in child nodes
   observer.observe(targetDiv, { childList: true })
 })
 
+function updateHeaderVisibility (selector, headerId) {
+  const cells = document.querySelectorAll(selector)
+  const header = document.getElementById(headerId)
+  if (cells.length === 0) header?.classList.add('hidden')
+  else header?.classList.remove('hidden')
+};
+
 //* Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
   if (appState.hasReturned) await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
   appState.hasReturned = false
 
-  updateTextArea('', appState.OUTPUT, false) // Clear the output
+  updateTextArea('', false) // Clear the output
 
   const report = new ReportBuilder() // Create a new HTML report to return
 
@@ -105,7 +114,7 @@ async function python (setup, params) {
 
       const checks = checkRequiredForbidden(code, setup?.conditions, allFiles) // Check if the user's code follows the required and forbidden riles
       if (checks.result === true) {
-        updateTextArea(checks.message ?? '', appState.OUTPUT) // Post the error message to the user
+        updateTextArea(checks.message ?? '') // Post the error message to the user
         break
       }
 
@@ -145,9 +154,7 @@ async function python (setup, params) {
 
   const buttons = document.querySelectorAll('.codecheckSubmit span')
 
-  buttons.forEach(button => {
-    button.classList.remove('disabled') // Remove disabled styling
-  })
+  buttons.forEach(button => button.classList.remove('disabled') /* Remove disabled styling */)
 
   appState.hasReturned = true
 
@@ -161,33 +168,29 @@ async function setupPyodide () {
   const buttons = document.querySelectorAll('.codecheckSubmit span')
 
   // Disable all the buttons
-  buttons.forEach(button => {
-    button.classList.add('disabled')
-  })
+  buttons.forEach(button => button.classList.add('disabled'))
 
   appState.stdoutOLD = []
   appState.stderrOLD = []
-  updateTextArea('Pyodide loading', appState.OUTPUT, false) // Inform the user that Pyodide is loading
+  updateTextArea('Pyodide loading', false) // Inform the user that Pyodide is loading
 
   const START = Date.now() // Get the current time
 
   try {
     appState.worker = new Worker('JS/pyodideWorker.js' /* path from the HTML file */) // Load Pyodide
     const END = (await runWorker({ type: 'setup' })).endTime
-    updateTextArea(`\nPyodide loaded in ${END - START}ms`, appState.OUTPUT) // Inform the user that Pyodide has loaded
+    updateTextArea(`\nPyodide loaded in ${END - START}ms`) // Inform the user that Pyodide has loaded
   } catch (err) {
     await handleError(err)
   }
 
   if (!firstLoad) return
 
-  buttons.forEach(button => {
-    button.classList.remove('disabled') // Remove disabled styling
-  })
+  buttons.forEach(button => button.classList.remove('disabled') /* Remove disabled styling */)
 }
 
 // Function that updates the value of the output and resize it
-function updateTextArea (text, area, append = true) {
+function updateTextArea (text, append = true) {
   area.value = append ? (area.value + text).trim() : text
   area.style.height = 'auto'
   area.style.height = `${area.scrollHeight}px`
@@ -198,7 +201,6 @@ async function runWorker (code) {
   appState.worker.postMessage(code) //* Post the message to the worker
   const result = await new Promise(resolve => { //* Wait for the worker to finsih processing the message
     appState.worker.onmessage = event => {
-      clearTimeout(appState.timeoutId) //* If the code ran within the maxtime, clear the timeout
       resolve(event.data)
     }
   })
@@ -208,21 +210,23 @@ async function runWorker (code) {
 //! Function that handles all python errors
 async function handleError (err) {
   if (err.type !== 'SystemExit') { //* Ignore a system.exit()
-    updateTextArea(`${err}\n${(await getOutput()).err}`, appState.OUTPUT, false)
+    updateTextArea(`${err}\n${(await getOutput()).err}`, false)
   }
 }
 
 // Function that runs python code
 async function runCode (code, timeout = 30000) {
-  clearTimeout(appState.timeoutId) //* Reset the timeout
-  appState.timeoutId = setTimeout(() => {
+  const timeoutId = setTimeout(() => {
     appState.worker.terminate() //! Stop the worker if it takes too long
-    updateTextArea(`Python code execution timed out after ${timeout} seconds`, appState.OUTPUT, false)
+    updateTextArea(`Python code execution timed out after ${timeout} seconds`, false)
     document.getElementsByClassName('codecheck-submit-response')[0].textContent = 'Max execution time exceeded'
   }, timeout)
   try {
-    return await runWorker({ type: 'runCode', code })
+    const response = await runWorker({ type: 'runCode', code })
+    clearTimeout(timeoutId) //* If the code ran within the maxtime, clear the timeout
+    return response
   } catch (err) {
+    clearTimeout(timeoutId) //* Reset the timeout
     await handleError(err)
   }
 }
@@ -386,7 +390,7 @@ async function runDependents (name, otherFiles, conditions, allFiles) {
     const code = otherFiles[file]
     const checks = checkRequiredForbidden(code, conditions, allFiles)
     if (checks.result === true) {
-      updateTextArea(checks.message ?? '', appState.OUTPUT)
+      updateTextArea(checks.message ?? '')
       break
     }
     // TODO: can this be less fragaile
