@@ -615,4 +615,7 @@ function getSuffix (s) {
   if (n === -1) {
     return s
   } else {
-    if (n + 1 < s.length && s.charAt(n + 1) ===
+    if (n + 1 < s.length && s.charAt(n + 1) === ' ') n++
+    return s.substring(n + 1)
+  }
+}
