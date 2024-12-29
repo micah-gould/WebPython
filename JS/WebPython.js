@@ -445,7 +445,7 @@ async function getCheckValues (ins) {
         ? file?.value
         : run?.output)?.replace(/^\n+|\n+$/g, '') ?? ''
 
-  const imageName = expected instanceof Uint8Array ? getName() : new Error('No Image Name')
+  const imageName = expected instanceof Uint8Array ? getName() : file?.name ?? new Error('No Image Name')
 
   const actual = expected instanceof Uint8Array
     ? (await runWorker({ type: 'analyzePath', fileName: imageName })).exists
@@ -615,7 +615,4 @@ function getSuffix (s) {
   if (n === -1) {
     return s
   } else {
-    if (n + 1 < s.length && s.charAt(n + 1) === ' ') n++
-    return s.substring(n + 1)
-  }
-}
+    if (n + 1 < s.length && s.charAt(n + 1) ===
