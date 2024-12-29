@@ -20,19 +20,13 @@ function createGetOutput () {
   // Function that gets the output of the python code
   return async function (hidden = false) {
     const preOutput = (await runCode('sys.stdout.getvalue()')).result.split('\n')
-
     if (preOutput.length < stdoutOLD.length) stdoutOLD = []
-
     const output = preOutput.slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-
     stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
 
     const preError = (await runCode('sys.stderr.getvalue()')).result.split('\n')
-
-    if (preError.length < stderrOLD.length) stdoutOLD = []
-
+    if (preError.length < stderrOLD.length) stderrOLD = []
     const err = preError.slice(stderrOLD.length, -1).join('\n') // Get the new errors
-
     stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
     if (output === '' && err === '') return appState.OUTPUT.value
@@ -57,7 +51,7 @@ window.addEventListener('load', async () => {
   const debounce = (func) => {
     let inProgress = false
     return (...args) => {
-      if (!inProgress || !appState.hasReturned) return
+      if (inProgress || !appState.hasReturned) return
       inProgress = true
       func(...args)
       inProgress = false
@@ -68,7 +62,6 @@ window.addEventListener('load', async () => {
     const tagName = targetDiv.tagName
     const diffSelector = `${tagName} .diff`
     const expectedSelector = `${tagName} .expected`
-
     mutationsList.forEach((mutation) => {
       if (mutation.type === 'childList') {
         updateHeaderVisibility(diffSelector, 'diff-header')
@@ -191,6 +184,7 @@ async function setupPyodide () {
 
 // Function that updates the value of the output and resize it
 function updateTextArea (text, append = true) {
+  const area = appState.OUTPUT
   area.value = append ? (area.value + text).trim() : text
   area.style.height = 'auto'
   area.style.height = `${area.scrollHeight}px`
@@ -277,7 +271,7 @@ async function call (ins) {
   const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
   await runCode(`print(${func}(${input}))`, attributes?.timeout) // Run each testcase
 
-  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, func, input: [input], allFiles })
+  const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, func, args: [input], allFiles, name })
 
   if (end) report.closeTable()
   return { correct, total }
@@ -346,7 +340,7 @@ async function tester (ins) {
 
   await runDependents(name, otherFiles, conditions, allFiles)
   const tests = report.newTests()
-  const output = (await getCheckValues(run)).actual
+  const output = (await getCheckValues({ run })).actual
   const outputs = output.split('\n')
   let correct = 0
   const expectedTests = output.match(/expected/gi).length
