@@ -4,15 +4,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script>
-const urlParams = new URLSearchParams(window.location.search);
-const n = urlParams.get('n') || 24;
-const script = document.createElement('script');
-script.src = "/testCases/test" + n + ".js";
-document.head.appendChild(script);
-  </script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
   <script src="/codecheckFiles/horstmann_codecheck.js"></script>
+  <script>//<![CDATA[
+const urlParams = new URLSearchParams(window.location.search);
+const problem = urlParams.get('problem')
+if (problem) {
+  const repo = urlParams.get('repo') ?? 'ext'
+  const setupData = 'https://codecheck.us/setupData/' + repo + '/' + problem
+  horstmann_codecheck.setup.push({ setupData })
+} else {
+  const n = urlParams.get('n') ?? 24
+  const script = document.createElement('script')
+  script.src = "/testCases/test" + n + ".js"
+  document.head.appendChild(script)
+}  
+  //]]></script>
   <script src="/codecheckFiles/codecheck2.js"></script>
   <script src="/codecheckFiles/util.js"></script>
   <script src="/ace/ace.js"></script>

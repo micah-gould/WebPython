@@ -929,7 +929,15 @@ window.addEventListener('load', async function () {
           order
           prefix
       */
-    if ('requiredFiles' in setup) { initElement(elements[index], setup) } else {
+    if ('requiredFiles' in setup) {
+      initElement(elements[index], setup)
+    }
+    else if ('setupData' in setup) {
+      const response = await fetch(setup.setupData)
+      const data = await response.json()
+      initElement(elements[index], data)
+    }
+    else {
       const origin = new URL(window.location.href).origin
       const response = await fetch(`${origin}/fileData?repo=${setup.repo}&problem=${setup.problem}`)
       const data = await response.json()
