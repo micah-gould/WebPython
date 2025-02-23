@@ -14,7 +14,7 @@ if (problem) {
   const setupData = 'https://codecheck.us/setupData/' + repo + '/' + problem
   horstmann_codecheck.setup.push({ setupData })
 } else {
-  const n = urlParams.get('n') ?? 24
+  const n = urlParams.get('n') ?? 1
   const script = document.createElement('script')
   script.src = "/testCases/test" + n + ".js"
   document.head.appendChild(script)
@@ -25,8 +25,9 @@ if (problem) {
   <script src="/ace/ace.js"></script>
   <script src="/ace/theme-kuroir.js"></script>
   <script src="/ace/theme-chrome.js"></script>
-  <script src="WebPython.js"></script>
-  <script src="report.js"></script>
+  <script src="/JS/WebPython.js"></script>
+  <script src="/JS/report.js"></script>
+  <script src="/JS/missingJava.js"></script>
   <link type="text/css" rel="stylesheet" href="WebPython.css" />
   <link type="text/css" rel="stylesheet" href="/codecheckFiles/codecheck.css" />
   <link type="text/css" rel="stylesheet" href="/codecheckFiles/horstmann_codecheck.css" />
@@ -38,7 +39,46 @@ if (problem) {
   <div id="description"></div>
   <div class="horstmann_codecheck"></div>
 
+  <button id="goBackButton">Go Back</button>
+  <button id="redirectButton">Go to next test</button>
 
+  <script>
+    // Add event listener to the button
+    document.getElementById('redirectButton').addEventListener('click', function () {
+      // Get the current URL
+      const currentUrl = new URL(window.location.href);
+
+      // Get the current value of the 'test' query parameter
+      const currentTestValue = currentUrl.searchParams.get('test');
+
+      // If 'test' is not defined or doesn't have a numeric value, initialize it to 2
+      const newTestValue = currentTestValue ? `${parseInt(currentTestValue) + 1}` : 2;
+
+      // Set the new URL with the updated query parameter
+      currentUrl.searchParams.set('test', newTestValue);
+
+      // Redirect to the new URL
+      window.location.href = currentUrl.toString();
+    });
+    // Add event listener to the button
+    document.getElementById('goBackButton').addEventListener('click', function () {
+      // Get the current URL
+      const currentUrl = new URL(window.location.href);
+
+      // Get the current value of the 'test' query parameter
+      const currentTestValue = currentUrl.searchParams.get('test');
+
+      // If 'test' is not defined or doesn't have a numeric value, initialize it to 2
+      const newTestValue = currentTestValue ? `${parseInt(currentTestValue) - 1}` : 2;
+
+      // Set the new URL with the updated query parameter
+      currentUrl.searchParams.set('test', newTestValue);
+
+      // Redirect to the new URL
+      window.location.href = currentUrl.toString();
+
+    });
+  </script>
 </body>
 
 </html>

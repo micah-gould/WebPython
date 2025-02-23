@@ -1,9 +1,6 @@
-/* eslint no-unused-vars: off
-    -------------
-    no-unused-vars is off because the class Report is written in this file but called from another */
-
 class ReportBuilder {
   constructor () {
+    this.Tests = ReportBuilder.Tests
     this.report = `
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -58,16 +55,8 @@ class ReportBuilder {
 <body>`
   }
 
-  has (text) {
-    return this.report.includes(text)
-  }
-
-  append (text) {
-    this.report += text
-  }
-
   appendOnce (text) {
-    this.append(this.has(text) ? '' : text)
+    if (!this.report.includes(text)) this.report += text
   }
 
   newCall () {
@@ -80,7 +69,8 @@ class ReportBuilder {
         <th>Name</th>
         <th>Arguments</th>
         <th>Actual</th>
-        <th>Expected</th>
+        <th id='expected-header'>Expected</th>
+        <th id='diff-header'>Difference</th>
       </tr>`)
   }
 
@@ -92,7 +82,8 @@ class ReportBuilder {
       <tr>
         <th>&#160;</th>
         <th>Actual</th>
-        <th>Expected</th>
+        <th id='expected-header'>Expected</th>
+        <th id='diff-header'>Difference</th>
       </tr>`)
   }
 
@@ -105,7 +96,9 @@ class ReportBuilder {
         <th>&#160;</th>
         <th>Name</th>
         ${args.map(arg => `<th>${arg.name}</th>`).join('\n')}
-        <th>Actual</th><th>Expected</th>
+        <th>Actual</th>
+        <th id='expected-header'>Expected</th>
+        <th id='diff-header'>Difference</th>
       </tr>`)
   }
 
@@ -121,60 +114,68 @@ class ReportBuilder {
   <div class="run">`)
   }
 
+  newTests () {
+    return new this.Tests(this)
+  }
+
   newRow () {
-    this.append(`
+    this.report += `
       <tr>
-        <td>`)
+        <td>`
   }
 
-  pf (pf) {
-    this.append(`<span class=${pf}>${pf}</span> `)
+  pf (pass) {
+    const pf = pass ? 'pass' : 'fail'
+    this.report += `<span class=${pf}>${pf}</span> `
   }
 
-  name (name) {
-    this.append(`</td>
-        <td><pre>${name}</pre>`)
+  info (hidden = false, info) {
+    this.report += `</td>
+        <td><pre>${hidden ? '[Hidden]' : info}</pre>`
   }
 
-  arg (arg) {
-    this.append(`</td>
-        <td><pre>${arg}</pre>`)
-  }
+  closeRow (ins) {
+    const { hidden = false, pass, actual, expexcted, imageDiff } = ins
+    const format = output =>
+      output instanceof Uint8Array
+        ? `<img src="${URL.createObjectURL(new Blob([output]))}">`
+        : output
 
-  closeRow (output, expectedOutput) {
-    if (output instanceof Uint8Array) {
-      output = `<img src="${URL.createObjectURL(new Blob([output]))}">`
+    this.report += `</td>
+        <td><pre>${hidden ? '[Hidden]' : format(actual)}</pre>`
+    if (!pass) {
+      this.report += `</td>
+        <td class='expected'><pre>${hidden ? '[Hidden]' : format(expexcted)}</pre>`
+      if (imageDiff) {
+        this.report += `</td>
+        <td class='diff'><pre>${hidden ? '[Hidden]' : format(imageDiff)}</pre></td>`
+      }
     }
-    if (expectedOutput instanceof Uint8Array) {
-      expectedOutput = `<img src="${URL.createObjectURL(new Blob([expectedOutput]))}">`
-    }
-    this.append(`</td>
-        <td><pre>${output}</pre></td>
-        <td><pre>${expectedOutput} </pre></td>
-      </tr>`)
+    this.report += `
+      </tr>`
   }
 
   closeTable () {
-    this.append(`
-    </table>`)
+    this.report += `
+    </table>`
   }
 
   studentFiles (file) {
     const names = Object.keys(file)
     names.forEach(name => {
       const code = file[name]
-      this.append(`
+      this.report += `
   </div>
   <p class="header studentFiles">Submitted files</p>
   <div class="studentFiles">
     <p class="caption">${name}:</p>
     <pre class="output">${code}</pre>
-  </div>`)
+  </div>`
     })
   }
 
   providedFiles (files) {
-    this.append(`
+    this.report += `
   <p class="header providedFiles">Provided files</p>
   <div class="providedFiles">
     ${files
@@ -184,24 +185,36 @@ class ReportBuilder {
 <pre class="output">${file}</pre>`)
       .join('')
       : ''}
-  </div>`)
+  </div>`
   }
 
   score (correct, total) {
-    this.append(`
+    this.report += `
   <p class="header score">Score</p>
   <div class="score">
     <p class="score">${correct}/${total}</p>
-  </div>`)
+  </div>`
   }
 
   end () {
-    this.append(`
+    this.report += `
 </body>
-</html>`)
+</html>`
+  }
+}
+
+ReportBuilder.Tests = class {
+  constructor (report) {
+    this.tests = '<pre class=\'output\'>'
+    this.report = report
   }
 
-  value () {
-    return this.report
+  addTest (hidden = false, output, expectedOutput, pass) {
+    const pf = pass ? 'pass' : 'fail'
+    this.tests += `<span class=${pf}>${hidden ? '[Hidden]' : output}</span>\nExpected: ${hidden ? '[Hidden]' : expectedOutput}\n`
+  }
+
+  append () {
+    this.report.report += (this.tests + '</pre>')
   }
 }

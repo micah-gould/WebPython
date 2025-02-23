@@ -3,13 +3,20 @@
 horstmann_codecheck.setup.push({
   sections: [
     {
-      type: 'unitTest', // TODO: Make sure this is correct
+      type: 'unitTest',
       runs: [
         {
           mainclass: 'numbers.py',
           caption: 'NumbersTest.py',
           output:
                 '..\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK'
+        },
+        {
+          mainclass: 'numbers.py',
+          caption: 'NumbersTest.py',
+          output:
+                '..\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK',
+          hidden: true
         }
       ]
     }

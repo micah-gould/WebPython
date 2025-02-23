@@ -22,6 +22,13 @@ horstmann_codecheck.setup.push({
           caption: 'average',
           args: [{ name: 'Arguments', value: '3, 0' }],
           output: '1.5'
+        },
+        {
+          mainclass: 'numbers.py',
+          caption: 'average',
+          args: [{ name: 'Arguments', value: '10, 2' }],
+          output: '6.0',
+          hidden: true
         }
       ]
     }
