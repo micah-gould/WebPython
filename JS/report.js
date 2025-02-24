@@ -135,7 +135,8 @@ class ReportBuilder {
   }
 
   closeRow (ins) {
-    const { hidden = false, pass, actual, expexcted, imageDiff } = ins
+    const { hidden = false, pass, actual, expected, imageDiff } = ins
+    console.log(expected)
     const format = output =>
       output instanceof Uint8Array
         ? `<img src="${URL.createObjectURL(new Blob([output]))}">`
@@ -145,7 +146,7 @@ class ReportBuilder {
         <td><pre>${hidden ? '[Hidden]' : format(actual)}</pre>`
     if (!pass) {
       this.report += `</td>
-        <td class='expected'><pre>${hidden ? '[Hidden]' : format(expexcted)}</pre>`
+        <td class='expected'><pre>${hidden ? '[Hidden]' : format(expected)}</pre>`
       if (imageDiff) {
         this.report += `</td>
         <td class='diff'><pre>${hidden ? '[Hidden]' : format(imageDiff)}</pre></td>`
