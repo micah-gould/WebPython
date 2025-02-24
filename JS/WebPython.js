@@ -307,7 +307,7 @@ async function sub (ins) {
   report.newSub(args)
 
   // Replace the variables with their new values
-  const newCode = args.reduce((acc, arg) => acc.replace(new RegExp(`\\${arg.name}\\ .*`), `${arg.name} = ${arg.value}`), code)
+  const newCode = args.reduce((acc, arg) => acc.replace(new RegExp(`${arg.name}.*`), `${arg.name} = ${arg.value}`), code)
 
   await runCode(newCode, attributes?.timeout) // Run each testcase
   await runDependents(name, otherFiles, conditions, allFiles)

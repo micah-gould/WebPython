@@ -7,19 +7,21 @@
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
   <script src="/codecheckFiles/horstmann_codecheck.js"></script>
   <script>//<![CDATA[
-const urlParams = new URLSearchParams(window.location.search);
-const problem = urlParams.get('problem')
-if (problem) {
-  const repo = urlParams.get('repo') ?? 'ext'
-  const setupData = 'https://codecheck.us/setupData/' + repo + '/' + problem
-  horstmann_codecheck.setup.push({ setupData })
-} else {
-  const n = urlParams.get('n') ?? 1
-  const script = document.createElement('script')
-  script.src = "/testCases/test" + n + ".js"
-  document.head.appendChild(script)
-}  
-  //]]></script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const problem = urlParams.get('problem')
+    if (problem)
+    {
+      const repo = urlParams.get('repo') ?? 'ext'
+      const setupData = 'https://codecheck.us/setupData/' + repo + '/' + problem
+      horstmann_codecheck.setup.push({ setupData })
+    } else
+    {
+      const n = urlParams.get('n') ?? 1
+      const script = document.createElement('script')
+      script.src = "/testCases/test" + n + ".js"
+      document.head.appendChild(script)
+    }
+    //]]></script>
   <script src="/codecheckFiles/codecheck2.js"></script>
   <script src="/codecheckFiles/util.js"></script>
   <script src="/ace/ace.js"></script>
@@ -48,14 +50,14 @@ if (problem) {
       // Get the current URL
       const currentUrl = new URL(window.location.href);
 
-      // Get the current value of the 'test' query parameter
-      const currentTestValue = currentUrl.searchParams.get('test');
+      // Get the current value of the 'n' query parameter
+      const currentTestValue = currentUrl.searchParams.get('n');
 
-      // If 'test' is not defined or doesn't have a numeric value, initialize it to 2
+      // If 'n' is not defined or doesn't have a numeric value, initialize it to 2
       const newTestValue = currentTestValue ? `${parseInt(currentTestValue) + 1}` : 2;
 
       // Set the new URL with the updated query parameter
-      currentUrl.searchParams.set('test', newTestValue);
+      currentUrl.searchParams.set('n', newTestValue);
 
       // Redirect to the new URL
       window.location.href = currentUrl.toString();
@@ -65,14 +67,14 @@ if (problem) {
       // Get the current URL
       const currentUrl = new URL(window.location.href);
 
-      // Get the current value of the 'test' query parameter
-      const currentTestValue = currentUrl.searchParams.get('test');
+      // Get the current value of the 'n' query parameter
+      const currentTestValue = currentUrl.searchParams.get('n');
 
-      // If 'test' is not defined or doesn't have a numeric value, initialize it to 2
+      // If 'n' is not defined or doesn't have a numeric value, initialize it to 2
       const newTestValue = currentTestValue ? `${parseInt(currentTestValue) - 1}` : 2;
 
       // Set the new URL with the updated query parameter
-      currentUrl.searchParams.set('test', newTestValue);
+      currentUrl.searchParams.set('n', newTestValue);
 
       // Redirect to the new URL
       window.location.href = currentUrl.toString();
