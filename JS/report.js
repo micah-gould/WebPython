@@ -136,7 +136,6 @@ class ReportBuilder {
 
   closeRow (ins) {
     const { hidden = false, pass, actual, expected, imageDiff } = ins
-    console.log(expected)
     const format = output =>
       output instanceof Uint8Array
         ? `<img src="${URL.createObjectURL(new Blob([output]))}">`
