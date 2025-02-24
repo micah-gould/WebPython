@@ -26,7 +26,8 @@ function createGetOutput () {
 
     const preError = (await runCode('sys.stderr.getvalue()')).result.split('\n')
     if (preError.length < stderrOLD.length) stderrOLD = []
-    const err = preError.slice(stderrOLD.length, -1).join('\n') // Get the new errors
+    let err = preError.slice(stderrOLD.length, -1).join('\n') // Get the new errors
+    if (/Error/gi.test(err)) err = `Error on line ${err.split('line').slice(-1)}`
     stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
 
     if (output === '' && err === '') return appState.OUTPUT.value
@@ -39,7 +40,9 @@ function createGetOutput () {
 const getOutput = createGetOutput()
 
 // Once the window is loaded the decription can be set and the text area for the output can be retrived
-window.addEventListener('load', async () => {
+window.addEventListener('load', load)
+
+async function load () {
   document.getElementById('description').innerHTML += window.horstmann_codecheck.setup
     .map(a => (a?.description ?? ''))
     .join('\n') // Set the description of the task
@@ -72,7 +75,7 @@ window.addEventListener('load', async () => {
 
   // Configure the observer to look for changes in child nodes
   observer.observe(targetDiv, { childList: true })
-})
+}
 
 function updateHeaderVisibility (selector, headerId) {
   const cells = document.querySelectorAll(selector)
@@ -83,7 +86,7 @@ function updateHeaderVisibility (selector, headerId) {
 
 //* Code starts here when it is called from horstmann_codecheck.js
 async function python (setup, params) {
-  if (appState.hasReturned) await setupPyodide() // Load pyodide each time because otherwise there is an issue with the outputs
+  if (appState.hasReturned) await load() // Load pyodide each time because otherwise there is an issue with the outputs
   appState.hasReturned = false
 
   updateTextArea('', false) // Clear the output
