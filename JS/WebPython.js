@@ -14,25 +14,26 @@ const imageEndings = ['apng', 'avif', 'bmp', 'cur', 'gif', 'ico', 'jfif', 'jpeg'
 
 //* Function to setup the closure for getOutput so that stdoutOLD and stderrOLD will not be global variables
 function createGetOutput () {
-  let stdoutOLD = [] // Array to store all past outputs (by line)
-  let stderrOLD = [] // Array to store all past errors (by line)
+  let stdoutOLDlength = 0 // number of lines in past stdout
+  let stderrOLDlength = 0 // number of lines in past stderr
 
   // Function that gets the output of the python code
   return async function (hidden = false) {
-    const preOutput = (await runCode('sys.stdout.getvalue()')).result.split('\n')
-    if (preOutput.length < stdoutOLD.length) stdoutOLD = []
-    const output = preOutput.slice(stdoutOLD.length, -1).join('\n') // Get the new outputs
-    stdoutOLD = stdoutOLD.concat(output.split('\n')) // Add the new outputs to the list of old outputs
+    const preOutput = (await runCode('sys.stdout.getvalue()')).result?.split('\n')
+    if (preOutput?.length < stdoutOLDlength) stdoutOLDlength = 0
+    const output = preOutput?.slice(stdoutOLDlength, -1).join('\n').trim() // Get the new outputs
+    stdoutOLDlength += output?.split('\n')?.length ?? 0 // Add the new outputs to the list of old outputs
 
-    const preError = (await runCode('sys.stderr.getvalue()')).result.split('\n')
-    if (preError.length < stderrOLD.length) stderrOLD = []
-    let err = preError.slice(stderrOLD.length, -1).join('\n') // Get the new errors
-    if (/Error/gi.test(err)) err = `Error on line ${err.split('line').slice(-1)}`
-    stderrOLD = stderrOLD.concat(err.split('\n')) // Add the new errors to the list of old errors
+    const preError = (await runCode('sys.stderr.getvalue()')).result?.split('\n')
+    if (preError?.length < stderrOLDlength) stderrOLDlength = 0
+    let err = preError?.slice(stderrOLDlength, -1).join('\n').trim() // Get the new errors
+    if (/Error/gi.test(err)) err = `Error on line ${err?.split('line')?.slice(-1)}`
+    stderrOLDlength += err?.split('\n')?.length ?? 0 // Add the new errors to the list of old errors
 
-    if (output === '' && err === '') return appState.OUTPUT.value
-    updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`)
-    if (!(err.includes('SystemExit'))) updateTextArea(`\n${err}`)
+    if (!output && !err) return appState.OUTPUT.value
+    if (output)updateTextArea(hidden ? '\n[Hidden]' : `\n${output}`)
+    if (!(err.includes('SystemExit'))) updateTextArea(hidden ? '\n[Hidden]' : `\n${err}`)
+
     return { output, err }
   }
 }
@@ -80,7 +81,7 @@ async function load () {
 function updateHeaderVisibility (selector, headerId) {
   const cells = document.querySelectorAll(selector)
   const header = document.getElementById(headerId)
-  if (cells.length === 0) header?.classList.add('hidden')
+  if (cells?.length === 0) header?.classList.add('hidden')
   else header?.classList.remove('hidden')
 };
 
@@ -99,7 +100,7 @@ async function python (setup, params) {
     let total = 0
     let correct = 0
     const otherFiles = { ...(setup?.useFiles ?? {}), ...(setup?.hiddenFiles ?? {}) } // Object of all non-editible files
-    const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles }).filter(([key]) => key.includes('.'))) // Object of all files including student files
+    const allFiles = Object.fromEntries(Object.entries({ ...params, ...otherFiles })?.filter(([key]) => key.includes('.'))) // Object of all files including student files
 
     await loadFiles(allFiles) // Load all files in the pyodide file system
 
@@ -131,7 +132,7 @@ async function python (setup, params) {
         otherFiles,
         attributes: setup?.attributes,
         conditions: setup?.conditions,
-        end: section.runs.indexOf(currentRun) === section.runs.length - 1,
+        end: section.runs.indexOf(currentRun) === section.runs?.length - 1,
         report,
         allFiles
       }) ?? console.error('Function not found') //! Unknown test case type
@@ -140,7 +141,7 @@ async function python (setup, params) {
       total += newTotal
     }
     report.studentFiles(Object.fromEntries(Object.keys(params)
-      .filter(file => Object.keys(setup.requiredFiles).includes(file))
+      ?.filter(file => Object.keys(setup.requiredFiles).includes(file))
       .map(file => [file, params[file]])))
     report.providedFiles(setup.useFiles)
     report.score(correct, total)
@@ -232,7 +233,7 @@ async function runCode (code, timeout = 30000) {
 async function loadFiles (files) {
   for (const fileName in files) {
     const file = files[fileName] // Get the code/text/imageData
-    const input = imageEndings.includes(fileName.split('.')[1]) // Check if the file is an image
+    const input = imageEndings.includes(fileName?.split('.')[1]) // Check if the file is an image
       ? Uint8Array.from(atob(file.data), c => c.charCodeAt(0)) // Decode image
       : file
     try {
@@ -271,7 +272,7 @@ async function call (ins) {
   await runDependents(name, otherFiles, conditions, allFiles)
 
   const func = run.caption // Get function name
-  const input = run.args.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
+  const input = run.args?.filter(arg => arg.name === 'Arguments')[0].value // Get the inputs
   await runCode(`print(${func}(${input}))`, attributes?.timeout) // Run each testcase
 
   const { correct, total } = await processOutputs({ run, filesAndImages: getFilesAndImages(run?.files, run?.images), attributes, report, func, args: [input], allFiles, name })
@@ -306,7 +307,7 @@ async function run (ins) {
 async function sub (ins) {
   const { code, run, name, otherFiles, attributes, end, conditions, report, allFiles } = ins
 
-  const args = run.args.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
+  const args = run.args?.filter(arg => !['Arguments', 'Command line arguments'].includes(arg.name))
   report.newSub(args)
 
   // Replace the variables with their new values
@@ -328,8 +329,8 @@ async function unitTest (ins) {
   report.newUnitTest()
 
   await runDependents(name, otherFiles, conditions, allFiles)
-  const total = (run.output?.split('\n')?.[0]?.match(/\./g) || []).length
-  const correct = ((await getOutput(run?.hidden)).err?.split('\n')?.[0]?.match(/\./g) || []).length
+  const total = (run.output?.split('\n')?.[0]?.match(/\./g) || [])?.length
+  const correct = ((await getOutput(run?.hidden)).err?.split('\n')?.[0]?.match(/\./g) || [])?.length
 
   report.pf(correct === total)
   return { correct, total }
@@ -344,13 +345,13 @@ async function tester (ins) {
   await runDependents(name, otherFiles, conditions, allFiles)
   const tests = report.newTests()
   const output = (await getCheckValues({ run })).actual
-  const outputs = output.split('\n')
+  const outputs = output?.split('\n')
   let correct = 0
-  const expectedTests = output.match(/expected/gi).length
+  const expectedTests = output.match(/expected/gi)?.length
   let actualTests = 0
 
-  for (let i = 0; i < outputs.length; i++) {
-    if (outputs[i].split(':')[0].toLowerCase() !== 'expected') continue
+  for (let i = 0; i < outputs?.length; i++) {
+    if (outputs[i]?.split(':')[0].toLowerCase() !== 'expected') continue
     actualTests++
     if (i === 0) {
       return { error: '<body>No actual value for "Expected: ..." in line 1</body>' }
@@ -378,7 +379,7 @@ async function tester (ins) {
 // Function that runs all files that call the user's file
 async function runDependents (name, otherFiles, conditions, allFiles) {
   // Run any other needed files
-  if (Object.keys(otherFiles).length === 0) return
+  if (Object.keys(otherFiles)?.length === 0) return
 
   const fileName = name.replace('.py', '') // Get the user's file's name
 
@@ -431,10 +432,10 @@ async function processOutputs (ins) {
 
 async function getImageName (fileNames) { // TODO: will be fixed
   const images = [...new Set(fileNames
-    .filter(file => imageEndings.includes(file.split('.')[1]))
-    .concat((await runWorker({ type: 'readcwd' }))
+    ?.filter(file => imageEndings.includes(file?.split('.')[1]))
+    ?.concat((await runWorker({ type: 'readcwd' }))
       .files
-      .filter(file => (imageEndings.includes(file.split('.')[1]) && !fileNames.includes(file)))))]
+      ?.filter(file => (imageEndings.includes(file?.split('.')[1]) && !fileNames.includes(file)))))]
   return () => images.pop()
 }
 
@@ -450,7 +451,7 @@ async function getCheckValues (ins) {
 
   const imageName = expected instanceof Uint8Array ? getName() : file?.name ?? new Error('No Image Name')
 
-  const actual = expected instanceof Uint8Array
+  let actual = expected instanceof Uint8Array
     ? (await runWorker({ type: 'analyzePath', fileName: imageName })).exists
         ? (await runWorker({ type: 'readFile', fileName: imageName })).file
         : new Error('No Image Found')
@@ -458,7 +459,14 @@ async function getCheckValues (ins) {
         ? (await runWorker({ type: 'analyzePath', fileName: file.name })).exists
             ? (await runWorker({ type: 'readFile', fileName: file.name, encoding: 'utf8' })).file
             : new Error('No File Found')
-        : (await getOutput(run?.hidden))?.output ?? (await getOutput(run?.hidden))).replace(/^\n+|\n+$/g, '')
+        : await getOutput(run?.hidden))
+
+  actual = actual?.output
+    ? actual?.output
+    : (actual?.err
+        ? actual?.err
+        : actual)?.replace(/^\n+|\n+$/g, '')
+
   return { expected, actual }
 }
 
@@ -513,7 +521,7 @@ async function processAsImages (expected, actual) {
   const expectedImageData = extractPixelData(expectedImage)
   const actualImageData = extractPixelData(actualImage)
 
-  return actualImageData.length === expectedImageData.length &&
+  return actualImageData?.length === expectedImageData?.length &&
   actualImageData.every((val, idx) => val === expectedImageData[idx]) //* Check that every pixel's RGBA values match
     ? { pass: true }
     : { pass: false, imageDiff: getImageDiffs(expectedImage, actualImage) }
@@ -610,7 +618,7 @@ function getImageDiffs (expected, actual) {
 
 function normalizeWS (...strings) {
   const newStrings = strings.map(string => string.replace(/\s+/g, ' ').trim())
-  return (newStrings.length === 1) ? newStrings[0] : newStrings
+  return (newStrings?.length === 1) ? newStrings[0] : newStrings
 }
 
 function getSuffix (s) {
@@ -618,7 +626,7 @@ function getSuffix (s) {
   if (n === -1) {
     return s
   } else {
-    if (n + 1 < s.length && s.charAt(n + 1) === ' ') n++
+    if (n + 1 < s?.length && s.charAt(n + 1) === ' ') n++
     return s.substring(n + 1)
   }
 }
